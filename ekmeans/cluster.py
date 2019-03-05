@@ -4,6 +4,7 @@ import scipy as sp
 from sklearn.metrics.pairwise import cosine_distances
 from sklearn.metrics import pairwise_distances
 from sklearn.metrics import pairwise_distances_argmin_min
+from sklearn.utils import check_array
 from sklearn.utils import check_random_state
 from sklearn.utils.extmath import safe_sparse_dot
 
@@ -50,11 +51,11 @@ class EKMeans:
         self._check_fit_data(X)
         random_state = check_random_state(self.random_state)
 
-        self.cluster_centers_, self.labels_, self.inertia_, = \
+        self.cluster_centers_, self.labels_ = \
             ek_means(
                 X, n_clusters = self.n_clusters, epsilon = self.epsilon,
-                init = self.init, max_iter = self.max_iter, tol = self.tol,
-                random_state = random_state, metric = self.metric,
+                init = self.init, max_iter = self.max_iter, max_depth= self.max_depth,
+                tol = self.tol, random_state = random_state, metric = self.metric,
                 min_size = self.min_size, verbose = self.verbose
             )
         return self
