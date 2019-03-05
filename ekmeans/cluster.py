@@ -2,6 +2,7 @@ from collections import Counter
 import numpy as np
 import scipy as sp
 from sklearn.metrics.pairwise import cosine_distances
+from sklearn.metrics import pairwise_distances
 from sklearn.metrics import pairwise_distances_argmin_min
 from sklearn.utils import check_random_state
 from sklearn.utils.extmath import safe_sparse_dot
@@ -138,6 +139,12 @@ def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
         # TODO
 
     centers = np.asarray(np.vstack(centers))
+    print('num clusters = {}'.format(len(Counter(labels))))
+
+    centers, labels, merge_to_indpt = merge_close_clusters(
+        centers, labels, epsilon)
+    print('num clusters = {}'.format(len(Counter(labels))))
+
     return centers, labels
 
 def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
@@ -228,6 +235,56 @@ def initialize(X, n_clusters, init, random_state):
         raise ValueError("init method should be "
             "['random', 'callable', 'numpy.ndarray']")
     return centers
+
+def merge_close_clusters(centers, labels, threshold):
+    n_clusters, n_terms = centers.shape
+    cluster_size = np.bincount(labels[np.where(labels >= 0)[0]], minlength=n_clusters)
+    sorted_indices, _ = zip(*sorted(enumerate(cluster_size), key=lambda x:-x[1]))
+
+    groups = _grouping_with_centers(centers, threshold, sorted_indices)
+    centers_ = np.dot(np.diag(cluster_size), centers)
+
+    n_groups = len(groups)
+    group_centers = np.zeros((n_groups, n_terms))
+    for g, idxs in enumerate(groups):
+        sum_ = centers_[idxs].sum(axis=0)
+        mean = sum_ / cluster_size[idxs].sum()
+        group_centers[g] = mean
+
+    labels_ = -1 * np.ones(labels.shape[0])
+    for m_idx, c_idxs in enumerate(groups):
+        for c_idx in c_idxs:
+            idxs = np.where(labels == c_idx)[0]
+            labels_[idxs] = m_idx
+    return group_centers, labels_, groups
+
+def _closest_group(groups, c, pdist, max_dist):
+    dist_ = 1
+    closest = None
+    for g, idxs in enumerate(groups):
+        dist = pdist[idxs, c].mean()
+        if dist > max_dist:
+            continue
+        if dist_ > dist:
+            dist_ = dist
+            closest = g
+    return closest
+
+def _grouping_with_centers(centers, max_dist, sorted_indices):
+    pdist = pairwise_distances(centers, metric='cosine')
+    return _grouping_with_pdist(pdist, max_dist, sorted_indices)
+
+def _grouping_with_pdist(pdist, max_dist, sorted_indices):
+    groups = [[sorted_indices[0]]]
+    for c in sorted_indices[1:]:
+        g = _closest_group(groups, c, pdist, max_dist)
+        # create new group
+        if g is None:
+            groups.append([c])
+        # assign c to g
+        else:
+            groups[g].append(c)
+    return groups
 
 def print_status(i_round, i_iter, labels, n_changed):
     n_samples = labels.shape[0]
