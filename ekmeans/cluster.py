@@ -143,9 +143,9 @@ def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
     centers = np.asarray(np.vstack(centers))
     print('num clusters = {}'.format(len(Counter(labels))))
 
-#     centers, labels, merge_to_indpt = merge_close_clusters(
-#         centers, labels, epsilon)
-#     print('num clusters = {}'.format(len(Counter(labels))))
+    centers, labels, merge_to_indpt = merge_close_clusters(
+        centers, labels, epsilon)
+    print('num clusters = {}'.format(len(Counter(labels))))
 
     print('num not assigned = {}'.format(np.where(labels == -1)[0].shape[0]))
     labels = flush(X, centers, labels, sub_to_idx, epsilon, metric)
@@ -264,7 +264,7 @@ def merge_close_clusters(centers, labels, threshold):
         mean = sum_ / cluster_size[idxs].sum()
         group_centers[g] = mean
 
-    labels_ = -1 * np.ones(labels.shape[0])
+    labels_ = -1 * np.ones(labels.shape[0], dtype=np.int)
     for m_idx, c_idxs in enumerate(groups):
         for c_idx in c_idxs:
             idxs = np.where(labels == c_idx)[0]
