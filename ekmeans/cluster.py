@@ -132,8 +132,10 @@ def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
         centers.append(sub_centers)
         cum_clusters += sub_centers.shape[0]
 
-        sub_to_idx = np.where(sub_labels == -1)[0]
-        X = X[sub_to_idx]
+        sub_to_idx_ = np.where(sub_labels == -1)[0]
+        X = X[sub_to_idx_]
+
+        sub_to_idx = sub_to_idx[sub_to_idx_]
 
         # check whether execute additional round
         # TODO
@@ -141,9 +143,13 @@ def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
     centers = np.asarray(np.vstack(centers))
     print('num clusters = {}'.format(len(Counter(labels))))
 
-    centers, labels, merge_to_indpt = merge_close_clusters(
-        centers, labels, epsilon)
-    print('num clusters = {}'.format(len(Counter(labels))))
+#     centers, labels, merge_to_indpt = merge_close_clusters(
+#         centers, labels, epsilon)
+#     print('num clusters = {}'.format(len(Counter(labels))))
+
+    print('num not assigned = {}'.format(np.where(labels == -1)[0].shape[0]))
+    labels = flush(X, centers, labels, sub_to_idx, epsilon, metric)
+    print('num not assigned = {}'.format(np.where(labels == -1)[0].shape[0]))
 
     return centers, labels
 
@@ -207,6 +213,13 @@ def update_centroid(X, centers, labels):
         idxs = np.where(labels == cluster)[0]
         centers[cluster] = np.asarray(X[idxs,:].sum(axis=0)) / idxs.shape[0]
     return centers
+
+def flush(X, centers, labels, sub_to_idx, epsilon, metric):
+    # set min_size = 0
+    sub_labels, _ = reassign(X, centers, epsilon, 0, metric)
+    assigned_idxs = np.where(sub_labels >= 0)[0]
+    labels[sub_to_idx[assigned_idxs]] = sub_labels[assigned_idxs]
+    return labels
 
 def compatify(centers, labels):
     centers_ = []
