@@ -112,19 +112,33 @@ def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
     """
 
     n_samples = X.shape[0]
-    center_stack = []
-    labels = -1 * np.ones(n_samples)
-    idx_to_row = np.asarray(range(n_samples), dtype=np.int)
+    cum_clusters = 0
+    centers = []
+    labels = -1 * np.ones(n_samples, dtype=np.int)
+    sub_to_idx = np.asarray(range(n_samples), dtype=np.int)
 
     for depth in range(1, max_depth + 1):
-        # each round
-        centers, labels, X = ek_means_base(X, n_clusters, epsilon, min_size,
+        # for each base ek-means
+        sub_centers, sub_labels = ek_means_base(X, n_clusters, epsilon, min_size,
             init, max_iter, tol, random_state, metric, verbose, depth)
-        # flushing
-        # TODO
+
+        # store labels
+        assigned_idxs = np.where(sub_labels >= 0)[0]
+        sub_labels[assigned_idxs] += cum_clusters
+        labels[sub_to_idx[assigned_idxs]] = sub_labels[assigned_idxs]
+
+        # store centroids
+        centers.append(sub_centers)
+        cum_clusters += sub_centers.shape[0]
+
+        sub_to_idx = np.where(sub_labels == -1)[0]
+        X = X[sub_to_idx]
 
         # check whether execute additional round
-    raise NotImplemented
+        # TODO
+
+    centers = np.asarray(np.vstack(centers))
+    return centers, labels
 
 def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
     random_state, metric, verbose, depth):
@@ -134,10 +148,7 @@ def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
     centers : numpy.ndarray
         Centroid vector. shape = (n_clusters, X.shape[1])
     labels : numpy.ndarray
-        Labels
-    Xr : numpy.ndarray or scipy.sparse.matrix
-        Xr.shape[0] < X.shape[0]
-        Submatrix of cluster not assigned points
+        Cluster labels
     """
 
     # set convergence threshold
@@ -158,19 +169,16 @@ def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
         labels = new_labels
 
         # check convergence
-        if n_changed <= tol_:
-            if verbose:
-                print('Early stoped. (converged)')
-                print_status(depth, i_iter, labels, n_changed)
-            break
-
         if verbose:
             print_status(depth, i_iter, labels, n_changed)
 
-    centers, labels = compatify(centers, labels)
-    Xr = X[np.where(labels == -1)[0]]
+        if n_changed <= tol_:
+            if verbose:
+                print('Early stoped. (converged)')
+            break
 
-    return centers, labels, Xr
+    centers, labels = compatify(centers, labels)
+    return centers, labels
 
 def reassign(X, centers, epsilon, min_size, metric):
     # find closest cluster
