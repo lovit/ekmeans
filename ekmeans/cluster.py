@@ -167,7 +167,9 @@ def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
         if verbose:
             print_status(depth, i_iter, labels, n_changed)
 
+    centers, labels = compatify(centers, labels)
     Xr = X[np.where(labels == -1)[0]]
+
     return centers, labels, Xr
 
 def reassign(X, centers, epsilon, min_size, metric):
@@ -190,6 +192,17 @@ def update_centroid(X, centers, labels):
         idxs = np.where(labels == cluster)[0]
         centers[cluster] = np.asarray(X[idxs,:].sum(axis=0)) / idxs.shape[0]
     return centers
+
+def compatify(centers, labels):
+    centers_ = []
+    labels_ = -1 * np.ones(labels.shape[0], dtype=np.int)
+    for cluster in range(centers.shape[0]):
+        idxs = np.where(labels == cluster)[0]
+        if idxs.shape[0] > 0:
+            labels_[idxs] = len(centers_)
+            centers_.append(centers[cluster])
+    centers_ = np.asarray(np.vstack(centers_))
+    return centers_, labels_
 
 def initialize(X, n_clusters, init, random_state):
     if isinstance(init, str) and init == 'random':
