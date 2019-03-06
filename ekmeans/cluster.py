@@ -15,7 +15,7 @@ from .cluster_utils import print_status
 class EKMeans:
     def __init__(self, n_clusters, epsilon=0.4, max_depth=5, min_size=2,
         max_iter=30, tol=0.0001, init='random', metric='cosine',
-        random_state=None, postprocessing=False, verbose=True):
+        random_state=None, postprocessing=False, verbose=True, debug_dir=None):
 
         self.n_clusters = n_clusters
         self.epsilon = epsilon
@@ -28,6 +28,7 @@ class EKMeans:
         self.random_state = random_state
         self.postprocessing = postprocessing
         self.verbose = verbose
+        self.debug_dir = debug_dir
 
     def fit_predict(self, X):
         """Compute cluster centers and predict cluster index for each sample.
@@ -239,7 +240,10 @@ def flush(X, centers, labels, sub_to_idx, epsilon, metric):
 def initialize(X, n_clusters, init, random_state):
     if isinstance(init, str) and init == 'random':
         seeds = random_state.permutation(X.shape[0])[:n_clusters]
-        centers = X[seeds,:].todense()
+        if sp.sparse.issparse(X):
+            centers = X[seeds,:].todense()
+        else:
+            centers = X[seeds,:]
     elif hasattr(init, '__array__'):
         centers = np.array(init, dtype=X.dtype)
         if centers.shape[0] != n_clusters:
