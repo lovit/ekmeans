@@ -7,15 +7,15 @@ from sklearn.metrics import pairwise_distances_argmin_min
 from sklearn.utils import check_array
 from sklearn.utils import check_random_state
 
-from .cluster_utils import compatify
-from .cluster_utils import merge_close_clusters
-from .cluster_utils import print_status
+from ekmeans.cluster_utils import compatify
+from ekmeans.cluster_utils import merge_close_clusters
+from ekmeans.cluster_utils import print_status
 
 
 class EKMeans:
     def __init__(self, n_clusters, epsilon=0.4, max_depth=5, min_size=2,
         max_iter=30, tol=0.0001, init='random', metric='cosine',
-        random_state=None, postprocessing=False, verbose=True, debug_dir=None):
+        random_state=None, postprocessing=False, verbose=True, log_dir=None):
 
         self.n_clusters = n_clusters
         self.epsilon = epsilon
@@ -28,7 +28,7 @@ class EKMeans:
         self.random_state = random_state
         self.postprocessing = postprocessing
         self.verbose = verbose
-        self.debug_dir = debug_dir
+        self.logger = initialize_logger(log_dir)
 
     def fit_predict(self, X):
         """Compute cluster centers and predict cluster index for each sample.
@@ -62,7 +62,7 @@ class EKMeans:
                 init = self.init, max_iter = self.max_iter, max_depth= self.max_depth,
                 tol = self.tol, random_state = random_state, metric = self.metric,
                 min_size = self.min_size, postprocessing = self.postprocessing,
-                verbose = self.verbose
+                verbose = self.verbose, logger = self.logger
             )
         return self
 
@@ -86,7 +86,7 @@ class EKMeans:
                 X.shape[0], self.n_clusters))
 
 def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
-    random_state, metric, min_size, postprocessing, verbose):
+    random_state, metric, min_size, postprocessing, verbose, logger):
     """
     Parameters
     ----------
@@ -111,6 +111,8 @@ def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
         Minumum cluster size for basic epsilon k-means
     verbose : Boolean
         If True, verbose mode on
+    logger : Logger
+        If not None, logging all cluster lables for each round and iteration
 
     Returns
     -------
@@ -132,8 +134,9 @@ def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
 
     for depth in range(1, max_depth + 1):
         # for each base ek-means
-        sub_centers, sub_labels = ek_means_base(X, n_clusters, epsilon, min_size,
-            init, max_iter, tol, random_state, metric, verbose, depth)
+        sub_centers, sub_labels = ek_means_base(X, n_clusters,
+            epsilon, min_size, init, max_iter, tol, random_state,
+            metric, verbose, depth, logger, sub_to_idx)
 
         # store labels
         assigned_idxs = np.where(sub_labels >= 0)[0]
@@ -146,6 +149,9 @@ def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
 
         if verbose:
             print('  - num cumulative clusters = {}'.format(cum_clusters))
+
+        if logger is not None:
+            logger.cumulate(sub_centers, sub_labels, sub_to_idx)
 
         sub_to_idx_ = np.where(sub_labels == -1)[0]
         X = X[sub_to_idx_]
@@ -163,14 +169,25 @@ def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
             print('Post-processing: merging close clusters ...', end='')
         centers, labels, merge_to_indpt = merge_close_clusters(
             centers, labels, epsilon)
+
+        if logger is not None:
+            suffix = 'postprocessed'
+            logger.labels = labels.copy()
+            logger.centers = [c for c in centers]
+            logger.log(suffix)
+
         if verbose:
             print('\rPost-processing: merging close clusters was done')
 
-    labels = flush(X, centers, labels, sub_to_idx, epsilon, metric)
+    try:
+        labels = flush(X, centers, labels, sub_to_idx, epsilon, metric)
+    except Exception as e:
+        print(e)
+
     return centers, labels
 
 def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
-    random_state, metric, verbose, depth):
+    random_state, metric, verbose, depth, logger, sub_to_idx):
     """
     Returns
     -------
@@ -193,6 +210,11 @@ def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
         new_labels, dist = reassign(X, centers, epsilon, min_size, metric)
         centers = update_centroid(X, centers, new_labels)
 
+        # logging
+        if logger is not None:
+            suffix = 'r{}_i{}'.format(depth, i_iter)
+            logger.log(suffix, new_labels, centers, sub_to_idx)
+
         # update labels
         n_changed = np.where(labels != new_labels)[0].shape[0]
         labels = new_labels
@@ -207,6 +229,12 @@ def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
             break
 
     centers, labels = compatify(centers, labels)
+
+    # logging
+    if logger is not None:
+        suffix = 'r{}_terminated'.format(depth, i_iter)
+        logger.log(suffix, labels, centers, sub_to_idx)
+
     return centers, labels
 
 def reassign(X, centers, epsilon, min_size, metric):
