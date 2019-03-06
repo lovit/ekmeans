@@ -10,6 +10,7 @@ from sklearn.utils import check_random_state
 from ekmeans.cluster_utils import compatify
 from ekmeans.cluster_utils import merge_close_clusters
 from ekmeans.cluster_utils import print_status
+from ekmeans.logger import initialize_logger
 
 
 class EKMeans:
