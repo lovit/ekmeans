@@ -68,7 +68,7 @@ def print_status(i_round, i_iter, labels, n_changed):
     n_samples = labels.shape[0]
     n_clusters = np.where(np.unique(labels) >= 0)[0].shape[0]
     n_assigned = np.where(labels >= 0)[0].shape[0]
-    print('[round #{}, iter #{}] n cluster = {}, n changes = {}, assigned = {} / {}'.format(
+    print('[round #{}, iter #{}] clusters = {}, changes = {}, assigned = {} / {}'.format(
         i_round, i_iter, n_clusters, n_changed, n_assigned, n_samples))
 
 def inner_product(X, Y):

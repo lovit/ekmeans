@@ -15,7 +15,7 @@ from .cluster_utils import print_status
 class EKMeans:
     def __init__(self, n_clusters, epsilon=0.4, max_depth=5, min_size=2,
         max_iter=30, tol=0.0001, init='random', metric='cosine',
-        random_state=None, verbose=True):
+        random_state=None, postprocessing=False, verbose=True):
 
         self.n_clusters = n_clusters
         self.epsilon = epsilon
@@ -26,6 +26,7 @@ class EKMeans:
         self.init = init
         self.metric = metric
         self.random_state = random_state
+        self.postprocessing = postprocessing
         self.verbose = verbose
 
     def fit_predict(self, X):
@@ -59,7 +60,8 @@ class EKMeans:
                 X, n_clusters = self.n_clusters, epsilon = self.epsilon,
                 init = self.init, max_iter = self.max_iter, max_depth= self.max_depth,
                 tol = self.tol, random_state = random_state, metric = self.metric,
-                min_size = self.min_size, verbose = self.verbose
+                min_size = self.min_size, postprocessing = self.postprocessing,
+                verbose = self.verbose
             )
         return self
 
@@ -83,7 +85,7 @@ class EKMeans:
                 X.shape[0], self.n_clusters))
 
 def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
-    random_state, metric, min_size, verbose):
+    random_state, metric, min_size, postprocessing, verbose):
     """
     Parameters
     ----------
@@ -141,25 +143,29 @@ def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
         centers.append(sub_centers)
         cum_clusters += sub_centers.shape[0]
 
+        if verbose:
+            print('  - num cumulative clusters = {}'.format(cum_clusters))
+
         sub_to_idx_ = np.where(sub_labels == -1)[0]
         X = X[sub_to_idx_]
 
         sub_to_idx = sub_to_idx[sub_to_idx_]
 
         # check whether execute additional round
-        # TODO
+        if assigned_idxs.shape[0] <= min_size:
+            break
 
     centers = np.asarray(np.vstack(centers))
-    print('num clusters = {}'.format(len(Counter(labels))))
 
-    centers, labels, merge_to_indpt = merge_close_clusters(
-        centers, labels, epsilon)
-    print('num clusters = {}'.format(len(Counter(labels))))
+    if postprocessing:
+        if verbose:
+            print('Post-processing: merging close clusters ...', end='')
+        centers, labels, merge_to_indpt = merge_close_clusters(
+            centers, labels, epsilon)
+        if verbose:
+            print('\rPost-processing: merging close clusters was done')
 
-    print('num not assigned = {}'.format(np.where(labels == -1)[0].shape[0]))
     labels = flush(X, centers, labels, sub_to_idx, epsilon, metric)
-    print('num not assigned = {}'.format(np.where(labels == -1)[0].shape[0]))
-
     return centers, labels
 
 def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
@@ -196,7 +202,7 @@ def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
 
         if n_changed <= tol_:
             if verbose:
-                print('Early stoped. (converged)')
+                print('  - Early stoped. (converged)')
             break
 
     centers, labels = compatify(centers, labels)
