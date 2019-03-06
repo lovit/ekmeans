@@ -64,10 +64,15 @@ class EKMeans:
         return self
 
     def predict(self, X):
-        raise NotImplemented
+        labels, dist = pairwise_distances_argmin_min(
+            X, self.cluster_centers_, metric=self.metric)
+        labels[np.where(dist >= self.epsilon)[0]] = -1
+        return labels
 
     def transform(self, X):
-        raise NotImplemented
+        if not hasattr(self, 'cluster_centers_'):
+            raise ValueError('Train model first using EKMeans.fit(X)')
+        return pairwise_distances(X, self.cluster_centers_, metric=self.metric)
 
     def _check_fit_data(self, X):
         """Verify that the number of samples given is larger than k"""
