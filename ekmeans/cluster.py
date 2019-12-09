@@ -11,6 +11,7 @@ from ekmeans.utils import merge_close_clusters
 from ekmeans.utils import print_status
 from ekmeans.utils import check_convergence
 from ekmeans.utils import verbose_message
+from ekmeans.utils import as_minute
 from ekmeans.logger import initialize_logger
 
 
@@ -130,7 +131,9 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth,
     """
     n_clusters = 0
     centers = None
-    labels = -np.ones(X.shape[0])
+    n_data = X.shape[0]
+    labels = -np.ones(n_data)
+    t = time()
 
     for depth in range(1, max_depth + 1):
         if centers is None:
@@ -144,6 +147,14 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth,
         prefix = f'round: {depth}/{max_depth} '
         centers, labels = ekmeans_core(X, centers, metric, labels,
             max_iter, tol, epsilon, min_size, verbose, prefix, logger)
+
+        if verbose:
+            n_assigned = np.where(labels >= 0)[0].shape[0]
+            percent = f'{100 * n_assigned / n_data:.4}%'
+            strf_t = as_minute(time() - t)
+            if strf_t:
+                strf_t = f', time: {strf_t}'
+            print(f'[round: {depth}/{max_depth}] #assigned: {n_assigned} ({percent}){strf_t}\n')
 
     # TODO
     # postprocessing: merge similar clusters
