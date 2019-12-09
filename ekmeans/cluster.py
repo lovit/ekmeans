@@ -240,7 +240,7 @@ def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
     return centers, labels
 
 def kmeans(X, n_clusters, metric, init='random', random_state=None,
-    max_iter=10, tol=0.001, verbose=False):
+    max_iter=10, tol=0.001, verbose=False, logger=None):
 
     """
     Arguments
@@ -262,6 +262,8 @@ def kmeans(X, n_clusters, metric, init='random', random_state=None,
         and updated centroid is smaller than `tol`, it stops training step.
     verbose : Boolean
         If True, it shows training progress.
+    logger : Logger
+        If not None, logging all cluster lables for each round and iteration
 
     Returns
     -------
@@ -276,11 +278,12 @@ def kmeans(X, n_clusters, metric, init='random', random_state=None,
     labels = -np.ones(X.shape[0])
 
     # train
-    centers, labels = kmeans_core(X, centers, metric, labels, max_iter, tol, verbose)
+    centers, labels = kmeans_core(X, centers, metric,
+        labels, max_iter, tol, verbose, logger)
 
     return centers, labels
 
-def kmeans_core(X, centers, metric, labels, max_iter, tol, verbose):
+def kmeans_core(X, centers, metric, labels, max_iter, tol, verbose, logger=None):
     """
     Arguments
     ---------
@@ -299,6 +302,8 @@ def kmeans_core(X, centers, metric, labels, max_iter, tol, verbose):
         and updated centroid is smaller than `tol`, it stops training step.
     verbose : Boolean
         If True, it shows training progress.
+    logger : Logger
+        If not None, logging all cluster lables for each round and iteration
 
     Returns
     -------
@@ -333,6 +338,9 @@ def kmeans_core(X, centers, metric, labels, max_iter, tol, verbose):
             strf = verbose_message(i_iter, max_iter, diff, n_changes,
                 -1, dist.mean(), early_stop, begin_time)
             print(strf)
+
+        # TODO
+        # logging
 
         if early_stop:
             break
