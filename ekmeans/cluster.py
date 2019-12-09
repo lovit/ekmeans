@@ -5,9 +5,12 @@ from sklearn.metrics.pairwise import cosine_distances
 from sklearn.metrics import pairwise_distances
 from sklearn.metrics import pairwise_distances_argmin_min
 from sklearn.utils import check_array
+from time import time
 
 from ekmeans.utils import merge_close_clusters
 from ekmeans.utils import print_status
+from ekmeans.utils import check_convergence
+from ekmeans.utils import verbose_message
 from ekmeans.logger import initialize_logger
 
 
@@ -233,6 +236,106 @@ def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
     if logger is not None:
         suffix = 'r{}_terminated'.format(depth, i_iter)
         logger.log(suffix, labels, centers, sub_to_idx)
+
+    return centers, labels
+
+def kmeans(X, n_clusters, metric, init='random', random_state=None,
+    max_iter=10, tol=0.001, verbose=False):
+
+    """
+    Arguments
+    ---------
+    X : numpy.ndarray or scipy.sparse.csr_matrix
+        Training data
+    n_clusters : int
+        Number of clusters
+    metric : str
+        Distance metric
+    init : str, callable, or numpy.ndarray
+        Initialization method
+    random_state : int or None
+        Random seed
+    max_iter : int
+        Maximum number of repetition
+    tol : float
+        Convergence threshold. if the distance between previous centroid
+        and updated centroid is smaller than `tol`, it stops training step.
+    verbose : Boolean
+        If True, it shows training progress.
+
+    Returns
+    -------
+    centers : numpy.ndarray
+        Centroid vectors, shape = (n_clusters, X.shape[1])
+    labels : numpy.ndarray
+        Integer list, shape = (X.shape[0],)
+    """
+
+    # initialize
+    centers = initialize(X, n_clusters, init, random_state)
+    labels = -np.ones(X.shape[0])
+
+    # train
+    centers, labels = kmeans_core(X, centers, metric, labels, max_iter, tol, verbose)
+
+    return centers, labels
+
+def kmeans_core(X, centers, metric, labels, max_iter, tol, verbose):
+    """
+    Arguments
+    ---------
+    X : numpy.ndarray or scipy.sparse.csr_matrix
+        Training data
+    centers : numpy.ndarray
+        Initialized centroid vectors
+    metric : str
+        Distance metric
+    labels : numpy.ndarray
+        Cluster index list, shape=(n_data,)
+    max_iter : int
+        Maximum number of repetition
+    tol : float
+        Convergence threshold. if the distance between previous centroid
+        and updated centroid is smaller than `tol`, it stops training step.
+    verbose : Boolean
+        If True, it shows training progress.
+
+    Returns
+    -------
+    centers : numpy.ndarray
+        Centroid vectors, shape = (n_clusters, X.shape[1])
+    labels : numpy.ndarray
+        Integer list, shape = (X.shape[0],)
+    """
+    begin_time = time()
+
+    # repeat
+    for i_iter in range(1, max_iter):
+
+        # training
+        labels_, dist = reassign(X, centers, metric)
+        centers_ = update_centroid(X, labels_)
+
+        # average distance only with assigned points
+        assigned_indices = np.where(labels_ >= 0)[0]
+        inner_dist = dist[assigned_indices].mean()
+        n_assigned = assigned_indices.shape[0]
+
+        # convergence check
+        diff, n_changes, early_stop = check_convergence(
+            centers, labels, centers_, labels_, tol, metric)
+
+        centers = centers_
+        labels = labels_
+
+        # verbose
+        if verbose:
+            strf = verbose_message(i_iter, max_iter, diff, n_changes,
+                -1, dist.mean(), early_stop, begin_time)
+            print(strf)
+
+        if early_stop:
+            break
 
     return centers, labels
 

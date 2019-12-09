@@ -1,6 +1,8 @@
 import numpy as np
 from sklearn.metrics import pairwise_distances
+from sklearn.metrics.pairwise import paired_distances
 from sklearn.utils.extmath import safe_sparse_dot
+from time import time
 
 
 def merge_close_clusters(centers, labels, threshold):
@@ -150,7 +152,7 @@ def verbose_message(i_iter, max_iter, diff, n_changes, n_assigneds, inner_dist, 
         rt = f'(-{rt})'
     t = f'{ct} {rt}'.strip()
     strf = f'[iter: {i_iter}/{max_iter}] #changes: {n_changes}, diff: {diff:.4}, inner: {inner_dist:.4}'
-    if n_assigned > 0:
+    if n_assigneds > 0:
         strf += f'#assigned: {n_assigneds}'
     if t:
         strf += ', time: '+t
