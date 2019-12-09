@@ -3,7 +3,7 @@
 Use [lovit_textmining_dataset](https://github.com/lovit/textmining_dataset) for demo.
 
 ```python
-from navernews_10days import get_bow
+from lovit_textmining_dataset.navernews_10days import get_bow
 
 X, idx_to_vocab, vocab_to_idx = get_bow(date='2016-10-20', tokenize='noun')
 X.shape # (30091, 9774)
