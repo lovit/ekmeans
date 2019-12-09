@@ -119,7 +119,7 @@ def check_convergence(centers, labels, centers_, labels_, tol, metric):
     return diff, n_changes, early_stop
 
 def verbose_message(i_iter, max_iter, diff, n_changes, n_assigneds,
-    n_clusters, inner_dist, early_stop, begin_time):
+    n_clusters, inner_dist, early_stop, begin_time, prefix=''):
     """
     Arguments
     ---------
@@ -154,7 +154,7 @@ def verbose_message(i_iter, max_iter, diff, n_changes, n_assigneds,
     if rt:
         rt = f'(-{rt})'
     t = f'{ct} {rt}'.strip()
-    strf = f'[iter: {i_iter}/{max_iter}] #changes: {n_changes}, diff: {diff:.4}, inner: {inner_dist:.4}'
+    strf = f'[{prefix}iter: {i_iter}/{max_iter}] #changes: {n_changes}, diff: {diff:.4}, inner: {inner_dist:.4}'
     if n_assigneds > 0:
         strf += f', #assigned: {n_assigneds}'
     if n_clusters > 0:

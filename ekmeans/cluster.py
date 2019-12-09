@@ -88,7 +88,7 @@ class EKMeans:
                 X.shape[0], self.n_clusters))
 
 def ekmeans(X, n_init, metric, epsilon, min_size, max_depth,
-    max_iter, tol, random_state, verbose, logger=None):
+    max_iter, tol, init, random_state, verbose, logger=None):
 
     """
     Arguments
@@ -112,6 +112,8 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth,
     tol : float
         Convergence threshold. if the distance between previous centroid
         and updated centroid is smaller than `tol`, it stops training step.
+    init : str, callable, or numpy.ndarray
+        Initialization method
     random_state : int or None
         Random seed
     verbose : Boolean
@@ -130,7 +132,7 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth,
     centers = None
     labels = -np.ones(X.shape[0])
 
-    for depth in range(max_depth):
+    for depth in range(1, max_depth + 1):
         if centers is None:
             centers = initialize(X, n_init, init, random_state)
         else:
@@ -139,8 +141,9 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth,
             centers_new = initialize(Xs, n_init, init, random_state)
             centers = np.vstack([centers, centers_new])
 
+        prefix = f'round: {depth}/{max_depth} '
         centers, labels = ekmeans_core(X, centers, metric, labels,
-            max_iter, tol, epsilon, min_size, verbose, logger)
+            max_iter, tol, epsilon, min_size, verbose, prefix, logger)
 
     # TODO
     # postprocessing: merge similar clusters
@@ -148,7 +151,7 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth,
     return centers, labels
 
 def ekmeans_core(X, centers, metric, labels, max_iter,
-    tol, epsilon, min_size, verbose, logger=None):
+    tol, epsilon, min_size, verbose, prefix='', logger=None):
 
     """
     Arguments
@@ -174,6 +177,8 @@ def ekmeans_core(X, centers, metric, labels, max_iter,
         The clusters of which size is smaller than the value are disintegrated.
     verbose : Boolean
         If True, it shows training progress.
+    prefix : str
+        Verbose prefix
     logger : Logger
         If not None, logging all cluster lables for each round and iteration
 
@@ -208,8 +213,8 @@ def ekmeans_core(X, centers, metric, labels, max_iter,
 
         # verbose
         if verbose:
-            strf = verbose_message(i_iter, max_iter, diff, n_changes,
-                n_assigned, n_clusters, inner_dist, early_stop, begin_time)
+            strf = verbose_message(i_iter, max_iter, diff, n_changes, n_assigned,
+                n_clusters, inner_dist, early_stop, begin_time, prefix)
             print(strf)
 
         # TODO
