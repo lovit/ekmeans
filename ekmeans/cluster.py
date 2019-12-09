@@ -190,23 +190,29 @@ def ekmeans_core(X, centers, metric, labels, max_iter,
         Integer list, shape = (X.shape[0],)
     """
     begin_time = time()
+    n_clusters = centers.shape[0]
 
     # repeat
     for i_iter in range(1, max_iter + 1):
 
         # training
         labels_, dist = reassign(X, centers, metric, epsilon, min_size)
-        centers_ = update_centroid(X, centers, labels_)
+        centers_, cluster_size = update_centroid(X, centers, labels_)
 
         # average distance only with assigned points
         assigned_indices = np.where(labels_ >= 0)[0]
         inner_dist = dist[assigned_indices].mean()
         n_assigned = assigned_indices.shape[0]
-        n_clusters = np.unique(labels_).shape[0]
+        n_clusters = np.where(np.unique(labels_) >= 0)[0].shape[0]
 
         # convergence check
         diff, n_changes, early_stop = check_convergence(
             centers, labels, centers_, labels_, tol, metric)
+
+        # reinitialize empty clusters
+        if np.where(cluster_size == 0)[0].shape[0] > 0:
+            centers_ = reinitialize_empty_clusters_with_notassigned(
+                X, centers_, cluster_size, labels_)
 
         centers = centers_
         labels = labels_
@@ -299,17 +305,24 @@ def kmeans_core(X, centers, metric, labels, max_iter, tol, verbose, logger=None)
         Integer list, shape = (X.shape[0],)
     """
     begin_time = time()
+    n_clusters = centers.shape[0]
 
     # repeat
     for i_iter in range(1, max_iter + 1):
 
         # training
         labels_, dist = reassign(X, centers, metric)
-        centers_ = update_centroid(X, centers, labels_)
+        centers_, cluster_size = update_centroid(X, centers, labels_)
 
         # convergence check
         diff, n_changes, early_stop = check_convergence(
             centers, labels, centers_, labels_, tol, metric)
+
+        # reinitialize empty clusters
+        n_empty_clusters = np.where(cluster_size == 0)[0].shape[0]
+        if n_empty_clusters > 0:
+            centers_ = reinitialize_empty_cluster_with_distant(
+                X, centers_, cluster_size, dist)
 
         centers = centers_
         labels = labels_
@@ -384,7 +397,7 @@ def update_centroid(X, centers, labels):
     X : numpy.ndarray or scipy.sparse.csr_matrix
         Training data
     centers : numpy.ndarray
-        Centroid vectors of current step t
+        Centroid vectors of current step
     labels : numpy.ndarray
         Integer list, shape = (X.shape[0],)
 
@@ -392,6 +405,8 @@ def update_centroid(X, centers, labels):
     -------
     centers_ : numpy.ndarray
         Updated centroid vectors
+    cluster_size : numpy.ndarray
+        Shape = (n_clusters,)
     """
     n_clusters = centers.shape[0]
     centers_ = np.zeros(centers.shape, dtype=np.float)
@@ -402,11 +417,70 @@ def update_centroid(X, centers, labels):
 
     for label, size in enumerate(cluster_size):
         if size == 0:
-            centers_[label] = centers[label]
+            centers_[label] == centers[label]
         else:
             idxs = np.where(labels == label)[0]
             centers_[label] = np.asarray(X[idxs,:].sum(axis=0)) / idxs.shape[0]
-    return centers_
+    return centers_, cluster_size
+
+def reinitialize_empty_cluster_with_distant(X, centers, cluster_size, dist):
+    """
+    Reinitialize empty clusters with random sampling from distant points
+
+    Arguments
+    ---------
+    X : numpy.ndarray or scipy.sparse.csr_matrix
+        Training data
+    centers : numpy.ndarray
+        Centroid vectors
+    cluster_size : numpy.ndarray
+        Shape = (n_clsuters,)
+    dist : numpy.ndarray
+        Distance from data and corresponding centroid
+
+    Returns
+    -------
+    centers : numpy.ndarray
+        Partially reinitialized centroid vectors
+    """
+    cluster_indices = np.where(cluster_size == 0)[0]
+    n_empty = cluster_indices.shape[0]
+    data_indices = dist.argsort()[-n_empty:]
+    initials = X[data_indices,:]
+    if sp.sparse.issparse(initials):
+        initials = np.asarray(initials.todense())
+    centers[cluster_indices,:] = initials
+    return centers
+
+def reinitialize_empty_clusters_with_notassigned(X, centers, cluster_size, labels):
+    """
+    Reinitialize empty clusters with random sampling from not-assigned points
+
+    Arguments
+    ---------
+    X : numpy.ndarray or scipy.sparse.csr_matrix
+        Training data
+    centers : numpy.ndarray
+        Centroid vectors
+    cluster_size : numpy.ndarray
+        Shape = (n_clsuters,)
+    labels : numpy.ndarray
+        Cluster indices, shape = (n_data,)
+
+    Returns
+    -------
+    centers : numpy.ndarray
+        Partially reinitialized centroid vectors
+    """
+    cluster_indices = np.where(cluster_size == 0)[0]
+    n_empty = cluster_indices.shape[0]
+    data_indices = np.where(labels == -1)[0]
+    data_indices = np.random.permutation(data_indices)[:n_empty]
+    initials = X[data_indices,:]
+    if sp.sparse.issparse(initials):
+        initials = np.asarray(initials.todense())
+    centers[cluster_indices,:] = initials
+    return centers
 
 def compatify(centers, labels):
     """
