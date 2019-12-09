@@ -5,7 +5,6 @@ from sklearn.metrics.pairwise import cosine_distances
 from sklearn.metrics import pairwise_distances
 from sklearn.metrics import pairwise_distances_argmin_min
 from sklearn.utils import check_array
-from sklearn.utils import check_random_state
 
 from ekmeans.cluster_utils import merge_close_clusters
 from ekmeans.cluster_utils import print_status
@@ -296,8 +295,8 @@ def update_centroid(X, labels):
     centers : numpy.ndarray
         Updated centroid vectors
     """
-    n_clusters = labels.max() + 1
-    centers = np.zeros(n_clusters, X.shape[1])
+    n_clusters = int(labels.max() + 1)
+    centers = np.zeros((n_clusters, X.shape[1]), dtype=np.float)
     for cluster in np.unique(labels):
         idxs = np.where(labels == cluster)[0]
         centers[cluster] = np.asarray(X[idxs,:].sum(axis=0)) / idxs.shape[0]
@@ -380,8 +379,9 @@ def initialize(X, n_clusters, init, random_state):
     centers : numpy.ndarray
         Initialized centroid vectors, shape = (n_clusters, X.shape[1])
     """
+    np.random.seed(random_state)
     if isinstance(init, str) and init == 'random':
-        seeds = random_state.permutation(X.shape[0])[:n_clusters]
+        seeds = np.random.permutation(X.shape[0])[:n_clusters]
         if sp.sparse.issparse(X):
             centers = X[seeds,:].todense()
         else:
