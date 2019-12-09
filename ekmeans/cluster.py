@@ -188,7 +188,9 @@ def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
 
     return centers, labels
 
-def ekmeans_core(X, centers, metric, labels, max_iter, tol, verbose, epsilon, min_size, logger=None):
+def ekmeans_core(X, centers, metric, labels, max_iter,
+    tol, epsilon, min_size, verbose, logger=None):
+
     """
     Arguments
     ---------
@@ -205,6 +207,12 @@ def ekmeans_core(X, centers, metric, labels, max_iter, tol, verbose, epsilon, mi
     tol : float
         Convergence threshold. if the distance between previous centroid
         and updated centroid is smaller than `tol`, it stops training step.
+    epsilon : float
+        Maximum distance from centroid to belonging data.
+        The points distant more than epsilon are not assigned to any cluster.
+    min_size : int
+        Minimum number of assigned points.
+        The clusters of which size is smaller than the value are disintegrated.
     verbose : Boolean
         If True, it shows training progress.
     logger : Logger
@@ -421,11 +429,11 @@ def update_centroid(X, centers, labels):
     centers_ : numpy.ndarray
         Updated centroid vectors
     """
-    n_clusters = int(labels.max() + 1)
-    centers_ = np.zeros((n_clusters, X.shape[1]), dtype=np.float)
+    n_clusters = centers.shape[0]
+    centers_ = np.zeros(centers.shape, dtype=np.float)
     cluster_size = np.bincount(
         labels[np.where(labels >= 0)[0]],
-        minlength = centers.shape[0]
+        minlength = n_clusters
     )
 
     for label, size in enumerate(cluster_size):
