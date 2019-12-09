@@ -207,8 +207,8 @@ def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
 
     for i_iter in range(1, max_iter + 1):
         # reassign & update centroid
-        new_labels, dist = reassign(X, centers, epsilon, min_size, metric)
-        centers = update_centroid(X, centers, new_labels)
+        new_labels, dist = reassign(X, centers, metric, epsilon, min_size)
+        centers = update_centroid(X, new_labels)
 
         # logging
         if logger is not None:
@@ -237,7 +237,7 @@ def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
 
     return centers, labels
 
-def reassign(X, centers, epsilon, min_size, metric):
+def reassign(X, centers, metric, epsilon=0, min_size=0, do_filter=True):
     """
     Arguments
     ---------
@@ -245,14 +245,17 @@ def reassign(X, centers, epsilon, min_size, metric):
         Training data
     centers : numpy.ndarray
         Centroid vectors
+    metric : str
+        Distance metric
     epsilon : float
         Maximum distance from centroid to belonging data.
         The points distant more than epsilon are not assigned to any cluster.
     min_size : int
         Minimum number of assigned points.
         The clusters of which size is smaller than the value are disintegrated.
-    metric : str
-        Distance metric
+    do_filter : Boolean
+        If True, it executes `epsilon` & `min_size` based filtering.
+        Else, it works like k-means.
 
     Returns
     -------
@@ -265,6 +268,9 @@ def reassign(X, centers, epsilon, min_size, metric):
     # find closest cluster
     labels, dist = pairwise_distances_argmin_min(X, centers, metric=metric)
 
+    if (not do_filter) or (epsilon == 0 and min_size <= 1):
+        return labels, dist
+
     # epsilon filtering
     labels[np.where(dist >= epsilon)[0]] = -1
 
@@ -276,14 +282,12 @@ def reassign(X, centers, epsilon, min_size, metric):
 
     return labels, dist
 
-def update_centroid(X, centers, labels):
+def update_centroid(X, labels):
     """
     Arguments
     ---------
     X : numpy.ndarray or scipy.sparse.csr_matrix
         Training data
-    centers : numpy.ndarray
-        Centroid vectors
     labels : numpy.ndarray
         Integer list, shape = (X.shape[0],)
 
@@ -292,6 +296,8 @@ def update_centroid(X, centers, labels):
     centers : numpy.ndarray
         Updated centroid vectors
     """
+    n_clusters = labels.max() + 1
+    centers = np.zeros(n_clusters, X.shape[1])
     for cluster in np.unique(labels):
         idxs = np.where(labels == cluster)[0]
         centers[cluster] = np.asarray(X[idxs,:].sum(axis=0)) / idxs.shape[0]
