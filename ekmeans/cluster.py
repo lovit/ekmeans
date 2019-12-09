@@ -319,12 +319,7 @@ def kmeans_core(X, centers, metric, labels, max_iter, tol, verbose, logger=None)
 
         # training
         labels_, dist = reassign(X, centers, metric)
-        centers_ = update_centroid(X, labels_)
-
-        # average distance only with assigned points
-        assigned_indices = np.where(labels_ >= 0)[0]
-        inner_dist = dist[assigned_indices].mean()
-        n_assigned = assigned_indices.shape[0]
+        centers_ = update_centroid(X, centers, labels_)
 
         # convergence check
         diff, n_changes, early_stop = check_convergence(
@@ -384,34 +379,48 @@ def reassign(X, centers, metric, epsilon=0, min_size=0, do_filter=True):
     # epsilon filtering
     labels[np.where(dist >= epsilon)[0]] = -1
 
+    cluster_size = np.bincount(
+        labels[np.where(labels >= 0)[0]],
+        minlength = centers.shape[0]
+    )
+
     # size filtering
-    for label, size in Counter(labels).items():
+    for label, size in enumerate(cluster_size):
         if size < min_size:
-            centers[label] = 0
             labels[np.where(labels == label)[0]] = -1
 
     return labels, dist
 
-def update_centroid(X, labels):
+def update_centroid(X, centers, labels):
     """
     Arguments
     ---------
     X : numpy.ndarray or scipy.sparse.csr_matrix
         Training data
+    centers : numpy.ndarray
+        Centroid vectors of current step t
     labels : numpy.ndarray
         Integer list, shape = (X.shape[0],)
 
     Returns
     -------
-    centers : numpy.ndarray
+    centers_ : numpy.ndarray
         Updated centroid vectors
     """
     n_clusters = int(labels.max() + 1)
-    centers = np.zeros((n_clusters, X.shape[1]), dtype=np.float)
-    for cluster in np.unique(labels):
-        idxs = np.where(labels == cluster)[0]
-        centers[cluster] = np.asarray(X[idxs,:].sum(axis=0)) / idxs.shape[0]
-    return centers
+    centers_ = np.zeros((n_clusters, X.shape[1]), dtype=np.float)
+    cluster_size = np.bincount(
+        labels[np.where(labels >= 0)[0]],
+        minlength = centers.shape[0]
+    )
+
+    for label, size in enumerate(cluster_size):
+        if size == 0:
+            centers_[label] = centers[label]
+        else:
+            idxs = np.where(labels == label)[0]
+            centers_[label] = np.asarray(X[idxs,:].sum(axis=0)) / idxs.shape[0]
+    return centers_
 
 def compatify(centers, labels):
     """
