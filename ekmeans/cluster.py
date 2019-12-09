@@ -164,7 +164,7 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
             print(f'[round: {depth}/{max_depth}] #assigned: {n_assigned} ({percent_strf}){t_strf}\n')
 
         if (coverage > 0) and (percent > coverage):
-            print('Reached to target coverage')
+            print(f'Reached the target coverage {100 * coverage:.4}%')
             break
 
     # TODO
