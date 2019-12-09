@@ -7,7 +7,6 @@ from sklearn.metrics import pairwise_distances_argmin_min
 from sklearn.utils import check_array
 from sklearn.utils import check_random_state
 
-from ekmeans.cluster_utils import compatify
 from ekmeans.cluster_utils import merge_close_clusters
 from ekmeans.cluster_utils import print_status
 from ekmeans.logger import initialize_logger
@@ -239,6 +238,30 @@ def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
     return centers, labels
 
 def reassign(X, centers, epsilon, min_size, metric):
+    """
+    Arguments
+    ---------
+    X : numpy.ndarray or scipy.sparse.csr_matrix
+        Training data
+    centers : numpy.ndarray
+        Centroid vectors
+    epsilon : float
+        Maximum distance from centroid to belonging data.
+        The points distant more than epsilon are not assigned to any cluster.
+    min_size : int
+        Minimum number of assigned points.
+        The clusters of which size is smaller than the value are disintegrated.
+    metric : str
+        Distance metric
+
+    Returns
+    -------
+    labels : numpy.ndarray
+        Integer list, shape = (X.shape[0],)
+        Not assigned points have -1
+    dist : numpy.ndarray
+        Distance from their corresponding cluster centroid
+    """
     # find closest cluster
     labels, dist = pairwise_distances_argmin_min(X, centers, metric=metric)
 
@@ -254,12 +277,79 @@ def reassign(X, centers, epsilon, min_size, metric):
     return labels, dist
 
 def update_centroid(X, centers, labels):
+    """
+    Arguments
+    ---------
+    X : numpy.ndarray or scipy.sparse.csr_matrix
+        Training data
+    centers : numpy.ndarray
+        Centroid vectors
+    labels : numpy.ndarray
+        Integer list, shape = (X.shape[0],)
+
+    Returns
+    -------
+    centers : numpy.ndarray
+        Updated centroid vectors
+    """
     for cluster in np.unique(labels):
         idxs = np.where(labels == cluster)[0]
         centers[cluster] = np.asarray(X[idxs,:].sum(axis=0)) / idxs.shape[0]
     return centers
 
+def compatify(centers, labels):
+    """
+    Remove centroids of empty cluster from `centers`, and re-numbering cluster index
+
+    Arguments
+    ---------
+    centers : numpy.ndarray
+        Centroid vectors
+    labels : numpy.ndarray
+        Integer list, shape = (n_data,)
+
+    Returns
+    -------
+    centers_ : numpy.ndarray
+        Compatified centroid vectors
+    labels_ : numpy.ndarray
+        Re-numbered cluster index list, shape = (n_data,)
+
+    Usage
+    -----
+        >>> centers = np.random.random_sample((10, 2))
+        >>> labels = np.concatenate([
+                np.random.randint(low=2, high=5, size=(100,)),
+                np.random.randint(low=8, high=10, size=(100,))
+            ])
+
+        >>> np.unique(labels)
+        $ array([2, 3, 4, 8, 9])
+
+        >>> centers, labels = compatify(centers, labels)
+        >>> np.unique(labels)
+        $ [0 1 2 3 4]
+
+        >>> centers
+
+        $ [[0.44844521 0.44927703]
+           [0.43318219 0.15770172]
+           [0.7164269  0.60108245]
+           [0.49072922 0.41281989]
+           [0.61217156 0.20791931]]
+    """
+    centers_ = []
+    labels_ = -1 * np.ones(labels.shape[0], dtype=np.int)
+    for cluster in range(centers.shape[0]):
+        idxs = np.where(labels == cluster)[0]
+        if idxs.shape[0] > 0:
+            labels_[idxs] = len(centers_)
+            centers_.append(centers[cluster])
+    centers_ = np.asarray(np.vstack(centers_))
+    return centers_, labels_
+
 def flush(X, centers, labels, sub_to_idx, epsilon, metric):
+    "deprecated"
     # set min_size = 0
     sub_labels, _ = reassign(X, centers, epsilon, 0, metric)
     assigned_idxs = np.where(sub_labels >= 0)[0]
@@ -267,6 +357,23 @@ def flush(X, centers, labels, sub_to_idx, epsilon, metric):
     return labels
 
 def initialize(X, n_clusters, init, random_state):
+    """
+    Arguments
+    ---------
+    X : numpy.ndarray or scipy.sparse.csr_matrix
+        Training data
+    n_clusters : int
+        Number of clusters
+    init : str, callable, or numpy.ndarray
+        Initialization method
+    random_state : int or None
+        Random seed
+
+    Returns
+    -------
+    centers : numpy.ndarray
+        Initialized centroid vectors, shape = (n_clusters, X.shape[1])
+    """
     if isinstance(init, str) and init == 'random':
         seeds = random_state.permutation(X.shape[0])[:n_clusters]
         if sp.sparse.issparse(X):

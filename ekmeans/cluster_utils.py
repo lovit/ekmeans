@@ -3,17 +3,6 @@ from sklearn.metrics import pairwise_distances
 from sklearn.utils.extmath import safe_sparse_dot
 
 
-def compatify(centers, labels):
-    centers_ = []
-    labels_ = -1 * np.ones(labels.shape[0], dtype=np.int)
-    for cluster in range(centers.shape[0]):
-        idxs = np.where(labels == cluster)[0]
-        if idxs.shape[0] > 0:
-            labels_[idxs] = len(centers_)
-            centers_.append(centers[cluster])
-    centers_ = np.asarray(np.vstack(centers_))
-    return centers_, labels_
-
 def merge_close_clusters(centers, labels, threshold):
     n_clusters, n_terms = centers.shape
     cluster_size = np.bincount(labels[np.where(labels >= 0)[0]], minlength=n_clusters)
