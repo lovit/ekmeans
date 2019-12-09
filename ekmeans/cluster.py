@@ -15,22 +15,26 @@ from ekmeans.logger import initialize_logger
 
 
 class EKMeans:
-    def __init__(self, n_clusters, epsilon=0.4, max_depth=5, min_size=2,
-        max_iter=30, tol=0.0001, init='random', metric='cosine',
+    def __init__(self, n_clusters, metric='cosine', epsilon=0.6, min_size=3, max_depth=10,
+        coverage=0.95, coarse_iter=5, max_iter=5, tol=0.0001, init='random',
         random_state=None, postprocessing=False, verbose=True, log_dir=None):
 
         self.n_clusters = n_clusters
+        self.metric = metric
         self.epsilon = epsilon
-        self.max_depth = max_depth
         self.min_size = min_size
+        self.max_depth = max_depth
+        self.coverage = coverage
+        self.coarse_iter = coarse_iter
         self.max_iter = max_iter
         self.tol = tol
         self.init = init
-        self.metric = metric
         self.random_state = random_state
         self.postprocessing = postprocessing
         self.verbose = verbose
-        self.logger = initialize_logger(log_dir)
+        #self.logger = initialize_logger(log_dir)
+        # TODO
+        self.logger = None
 
     def fit_predict(self, X):
         """Compute cluster centers and predict cluster index for each sample.
@@ -56,16 +60,11 @@ class EKMeans:
 
     def fit(self, X):
         self._check_fit_data(X)
-        random_state = check_random_state(self.random_state)
-
         self.cluster_centers_, self.labels_ = \
-            ek_means(
-                X, n_clusters = self.n_clusters, epsilon = self.epsilon,
-                init = self.init, max_iter = self.max_iter, max_depth= self.max_depth,
-                tol = self.tol, random_state = random_state, metric = self.metric,
-                min_size = self.min_size, postprocessing = self.postprocessing,
-                verbose = self.verbose, logger = self.logger
-            )
+            ekmeans(X, self.n_clusters, self.metric, self.epsilon,
+                self.min_size, self.max_depth, self.coverage,
+                self.coarse_iter, self.max_iter, self.tol, self.init,
+                self.random_state, self.verbose, self.logger)
         return self
 
     def predict(self, X):
