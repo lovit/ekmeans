@@ -55,13 +55,14 @@ def _grouping_with_pdist(pdist, max_dist, sorted_indices):
             groups[g].append(c)
     return groups
 
-def print_status(i_round, i_iter, labels, n_changed):
-    "deprecated"
-    n_samples = labels.shape[0]
-    n_clusters = np.where(np.unique(labels) >= 0)[0].shape[0]
-    n_assigned = np.where(labels >= 0)[0].shape[0]
-    print('[round #{}, iter #{}] clusters = {}, changes = {}, assigned = {} / {}'.format(
-        i_round, i_iter, n_clusters, n_changed, n_assigned, n_samples))
+def filter_infrequents(labels, min_size):
+    if min_size <= 0:
+        return labels
+    for label in np.unique(labels):
+        indices = np.where(labels == label)[0]
+        if indices.shape[0] < min_size:
+            labels[indices] = -1
+    return labels
 
 def inner_product(X, Y):
     """

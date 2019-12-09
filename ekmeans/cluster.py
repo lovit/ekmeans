@@ -6,11 +6,10 @@ from sklearn.metrics import pairwise_distances_argmin_min
 from sklearn.utils import check_array
 from time import time
 
-from ekmeans.utils import merge_close_clusters
-from ekmeans.utils import print_status
 from ekmeans.utils import check_convergence
 from ekmeans.utils import verbose_message
 from ekmeans.utils import as_minute
+from ekmeans.utils import filter_infrequents
 from ekmeans.logger import initialize_logger
 
 
@@ -36,7 +35,7 @@ class EKMeans:
         # TODO
         self.logger = None
 
-    def fit_predict(self, X):
+    def fit_predict(self, X, min_size=-1):
         """Compute cluster centers and predict cluster index for each sample.
 
         Convenience method; equivalent to calling fit(X) followed by
@@ -52,25 +51,27 @@ class EKMeans:
         labels : array, shape [n_samples,]
             Index of the cluster each sample belongs to.
         """
-        return self.fit(X).labels_
+        return self.fit(X, min_size).labels_
 
     def fit_transform(self, X):
         self.fit(X)
         return self.transform(X)
 
-    def fit(self, X):
+    def fit(self, X, min_size=-1):
         self._check_fit_data(X)
-        self.cluster_centers_, self.labels_ = \
+        self.cluster_centers_, labels_ = \
             ekmeans(X, self.n_clusters, self.metric, self.epsilon,
                 self.min_size, self.max_depth, self.coverage,
                 self.coarse_iter, self.max_iter, self.tol, self.init,
                 self.random_state, self.verbose, self.logger)
+        self.labels_ = filter_infrequents(labels_, min_size)
         return self
 
-    def predict(self, X):
+    def predict(self, X, min_size=-1):
         labels, dist = pairwise_distances_argmin_min(
             X, self.cluster_centers_, metric=self.metric)
         labels[np.where(dist >= self.epsilon)[0]] = -1
+        labels = filter_infrequents(labels, min_size)
         return labels
 
     def transform(self, X):
