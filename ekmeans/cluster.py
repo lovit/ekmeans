@@ -87,104 +87,63 @@ class EKMeans:
             raise ValueError("n_samples=%d should be >= n_clusters=%d" % (
                 X.shape[0], self.n_clusters))
 
-def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
-    random_state, metric, min_size, postprocessing, verbose, logger):
+def ekmeans(X, n_init, metric, epsilon, min_size, max_depth,
+    max_iter, tol, random_state, verbose, logger=None):
+
     """
-    Parameters
-    ----------
-    X : numpy.ndarray or scipy.sparse.matrix
-    n_clusters : int
-        Number of clusters for each round
-    epsilon : float
-        Maximum distance between centroid and points that allowed to assign.
-    max_depth : int
-        Maximum number of basic epsilon k-means
-    init : str or callable
-        Initializer method
-    max_iter : int
-        Maximum number of iteration for basic epsilon k-means
-    tol : float
-        Convergence threshold. Proportion of re-assigned points.
-    random_state : int or None
-        Random seed
+    Arguments
+    ---------
+    X : numpy.ndarray or scipy.sparse.csr_matrix
+        Training data
+    n_init : int
+        Number of newly initialized clusters
     metric : str
         Distance metric
+    epsilon : float
+        Maximum distance from centroid to belonging data.
+        The points distant more than epsilon are not assigned to any cluster.
     min_size : int
-        Minumum cluster size for basic epsilon k-means
+        Minimum number of assigned points.
+        The clusters of which size is smaller than the value are disintegrated.
+    max_depth : int
+        Maximum number of rounds
+    max_iter : int
+        Maximum number of repetition
+    tol : float
+        Convergence threshold. if the distance between previous centroid
+        and updated centroid is smaller than `tol`, it stops training step.
+    random_state : int or None
+        Random seed
     verbose : Boolean
-        If True, verbose mode on
+        If True, it shows training progress.
     logger : Logger
         If not None, logging all cluster lables for each round and iteration
 
     Returns
     -------
     centers : numpy.ndarray
-        shape = (-1, n_features)
+        Centroid vectors, shape = (n_clusters, X.shape[1])
     labels : numpy.ndarray
-        shape = (n_samples)
-
-    Notes
-    -----
-    label -1 means not cluster assigned points (outliers)
+        Integer list, shape = (X.shape[0],)
     """
+    n_clusters = 0
+    centers = None
+    labels = -np.ones(X.shape[0])
 
-    n_samples = X.shape[0]
-    cum_clusters = 0
-    centers = []
-    labels = -1 * np.ones(n_samples, dtype=np.int)
-    sub_to_idx = np.asarray(range(n_samples), dtype=np.int)
+    for depth in range(max_depth):
+        if centers is None:
+            centers = initialize(X, n_init, init, random_state)
+        else:
+            indices = np.where(labels == -1)[0]
+            Xs = X[indices]
+            centers_new = initialize(Xs, n_init, init, random_state)
+            centers = np.vstack([centers, centers_new])
 
-    for depth in range(1, max_depth + 1):
-        # for each base ek-means
-        sub_centers, sub_labels = ek_means_base(X, n_clusters,
-            epsilon, min_size, init, max_iter, tol, random_state,
-            metric, verbose, depth, logger, sub_to_idx)
+        centers, labels = ekmeans_core(X, centers, metric, labels,
+            max_iter, tol, epsilon, min_size, verbose, logger)
 
-        # store labels
-        assigned_idxs = np.where(sub_labels >= 0)[0]
-        sub_labels[assigned_idxs] += cum_clusters
-        labels[sub_to_idx[assigned_idxs]] = sub_labels[assigned_idxs]
-
-        # store centroids
-        centers.append(sub_centers)
-        cum_clusters += sub_centers.shape[0]
-
-        if verbose:
-            print('  - num cumulative clusters = {}'.format(cum_clusters))
-
-        if logger is not None:
-            logger.cumulate(sub_centers, sub_labels, sub_to_idx)
-
-        sub_to_idx_ = np.where(sub_labels == -1)[0]
-        X = X[sub_to_idx_]
-
-        sub_to_idx = sub_to_idx[sub_to_idx_]
-
-        # check whether execute additional round
-        if assigned_idxs.shape[0] <= min_size:
-            break
-
-    centers = np.asarray(np.vstack(centers))
-
-    if postprocessing:
-        if verbose:
-            print('Post-processing: merging close clusters ...', end='')
-        centers, labels, merge_to_indpt = merge_close_clusters(
-            centers, labels, epsilon)
-
-        if logger is not None:
-            suffix = 'postprocessed'
-            logger.labels = labels.copy()
-            logger.centers = [c for c in centers]
-            logger.log(suffix)
-
-        if verbose:
-            print('\rPost-processing: merging close clusters was done')
-
-    try:
-        labels = flush(X, centers, labels, sub_to_idx, epsilon, metric)
-    except Exception as e:
-        print(e)
+    # TODO
+    # postprocessing: merge similar clusters
 
     return centers, labels
 
