@@ -1,7 +1,6 @@
-from collections import Counter
+import math
 import numpy as np
 import scipy as sp
-from sklearn.metrics.pairwise import cosine_distances
 from sklearn.metrics import pairwise_distances
 from sklearn.metrics import pairwise_distances_argmin_min
 from sklearn.utils import check_array
@@ -88,7 +87,7 @@ class EKMeans:
             raise ValueError("n_samples=%d should be >= n_clusters=%d" % (
                 X.shape[0], self.n_clusters))
 
-def ekmeans(X, n_init, metric, epsilon, min_size, max_depth,
+def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
     max_iter, tol, init, random_state, verbose, logger=None):
 
     """
@@ -108,6 +107,8 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth,
         The clusters of which size is smaller than the value are disintegrated.
     max_depth : int
         Maximum number of rounds
+    coverage : float
+        Target percentage of the data allocated to corresponding cluster.
     max_iter : int
         Maximum number of repetition
     tol : float
@@ -129,13 +130,18 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth,
     labels : numpy.ndarray
         Integer list, shape = (X.shape[0],)
     """
+    if max_depth <= 0:
+        max_depth_ = math.ceil(n_data / n_init)
+    else:
+        max_depth_ = max_depth
+
     n_clusters = 0
     centers = None
     n_data = X.shape[0]
     labels = -np.ones(n_data)
     t = time()
 
-    for depth in range(1, max_depth + 1):
+    for depth in range(1, max_depth_ + 1):
         if centers is None:
             centers = initialize(X, n_init, init, random_state)
         else:
@@ -148,13 +154,18 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth,
         centers, labels = ekmeans_core(X, centers, metric, labels,
             max_iter, tol, epsilon, min_size, verbose, prefix, logger)
 
+        n_assigned = np.where(labels >= 0)[0].shape[0]
+        percent = n_assigned / n_data
         if verbose:
-            n_assigned = np.where(labels >= 0)[0].shape[0]
-            percent = f'{100 * n_assigned / n_data:.4}%'
-            strf_t = as_minute(time() - t)
-            if strf_t:
-                strf_t = f', time: {strf_t}'
-            print(f'[round: {depth}/{max_depth}] #assigned: {n_assigned} ({percent}){strf_t}\n')
+            percent_strf = f'{100 * percent:.4}%'
+            t_strf = as_minute(time() - t)
+            if t_strf:
+                t_strf = f', time: {t_strf}'
+            print(f'[round: {depth}/{max_depth}] #assigned: {n_assigned} ({percent_strf}){t_strf}\n')
+
+        if (coverage > 0) and (percent > coverage):
+            print('Reached to target coverage')
+            break
 
     # TODO
     # postprocessing: merge similar clusters
