@@ -118,7 +118,8 @@ def check_convergence(centers, labels, centers_, labels_, tol, metric):
     early_stop = (diff < difference_threshold) or (n_changes < reassign_threshold)
     return diff, n_changes, early_stop
 
-def verbose_message(i_iter, max_iter, diff, n_changes, n_assigneds, inner_dist, early_stop, begin_time):
+def verbose_message(i_iter, max_iter, diff, n_changes, n_assigneds,
+    n_clusters, inner_dist, early_stop, begin_time):
     """
     Arguments
     ---------
@@ -132,6 +133,8 @@ def verbose_message(i_iter, max_iter, diff, n_changes, n_assigneds, inner_dist, 
         Number of re-assigned points
     n_assigneds : int
         Number of assigned points
+    n_clusters : int
+        Number of non-empty clusters
     inner_dist : float
         Average inner distance
     early_stop : Boolean
@@ -153,7 +156,9 @@ def verbose_message(i_iter, max_iter, diff, n_changes, n_assigneds, inner_dist, 
     t = f'{ct} {rt}'.strip()
     strf = f'[iter: {i_iter}/{max_iter}] #changes: {n_changes}, diff: {diff:.4}, inner: {inner_dist:.4}'
     if n_assigneds > 0:
-        strf += f'#assigned: {n_assigneds}'
+        strf += f', #assigned: {n_assigneds}'
+    if n_clusters > 0:
+        strf += f', #clusters: {n_clusters}'
     if t:
         strf += ', time: '+t
     if early_stop:

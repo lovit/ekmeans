@@ -188,54 +188,68 @@ def ek_means(X, n_clusters, epsilon, max_depth, init, max_iter, tol,
 
     return centers, labels
 
-def ek_means_base(X, n_clusters, epsilon, min_size, init, max_iter, tol,
-    random_state, metric, verbose, depth, logger, sub_to_idx):
+def ekmeans_core(X, centers, metric, labels, max_iter, tol, verbose, epsilon, min_size, logger=None):
     """
+    Arguments
+    ---------
+    X : numpy.ndarray or scipy.sparse.csr_matrix
+        Training data
+    centers : numpy.ndarray
+        Initialized centroid vectors
+    metric : str
+        Distance metric
+    labels : numpy.ndarray
+        Cluster index list, shape=(n_data,)
+    max_iter : int
+        Maximum number of repetition
+    tol : float
+        Convergence threshold. if the distance between previous centroid
+        and updated centroid is smaller than `tol`, it stops training step.
+    verbose : Boolean
+        If True, it shows training progress.
+    logger : Logger
+        If not None, logging all cluster lables for each round and iteration
+
     Returns
     -------
     centers : numpy.ndarray
-        Centroid vector. shape = (n_clusters, X.shape[1])
+        Centroid vectors, shape = (n_clusters, X.shape[1])
     labels : numpy.ndarray
-        Cluster labels
+        Integer list, shape = (X.shape[0],)
     """
+    begin_time = time()
 
-    # set convergence threshold
-    n_samples = X.shape[0]
-    tol_ = int(n_samples * tol)
-
-    # initialize parameters
-    labels = -1 * np.ones(n_samples)
-    centers = initialize(X, n_clusters, init, random_state)
-
+    # repeat
     for i_iter in range(1, max_iter + 1):
-        # reassign & update centroid
-        new_labels, dist = reassign(X, centers, metric, epsilon, min_size)
-        centers = update_centroid(X, new_labels)
 
-        # logging
-        if logger is not None:
-            suffix = 'r{}_i{}'.format(depth, i_iter)
-            logger.log(suffix, new_labels, centers, sub_to_idx)
+        # training
+        labels_, dist = reassign(X, centers, metric, epsilon, min_size)
+        centers_ = update_centroid(X, centers, labels_)
 
-        # update labels
-        n_changed = np.where(labels != new_labels)[0].shape[0]
-        labels = new_labels
+        # average distance only with assigned points
+        assigned_indices = np.where(labels_ >= 0)[0]
+        inner_dist = dist[assigned_indices].mean()
+        n_assigned = assigned_indices.shape[0]
+        n_clusters = np.unique(labels_).shape[0]
 
-        # check convergence
+        # convergence check
+        diff, n_changes, early_stop = check_convergence(
+            centers, labels, centers_, labels_, tol, metric)
+
+        centers = centers_
+        labels = labels_
+
+        # verbose
         if verbose:
-            print_status(depth, i_iter, labels, n_changed)
+            strf = verbose_message(i_iter, max_iter, diff, n_changes,
+                n_assigned, n_clusters, inner_dist, early_stop, begin_time)
+            print(strf)
 
-        if n_changed <= tol_:
-            if verbose:
-                print('  - Early stoped. (converged)')
+        # TODO
+        # logging
+
+        if early_stop:
             break
-
-    centers, labels = compatify(centers, labels)
-
-    # logging
-    if logger is not None:
-        suffix = 'r{}_terminated'.format(depth, i_iter)
-        logger.log(suffix, labels, centers, sub_to_idx)
 
     return centers, labels
 
@@ -331,7 +345,7 @@ def kmeans_core(X, centers, metric, labels, max_iter, tol, verbose, logger=None)
         # verbose
         if verbose:
             strf = verbose_message(i_iter, max_iter, diff, n_changes,
-                -1, dist.mean(), early_stop, begin_time)
+                -1, -1, dist.mean(), early_stop, begin_time)
             print(strf)
 
         # TODO
