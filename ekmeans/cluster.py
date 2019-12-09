@@ -6,8 +6,8 @@ from sklearn.metrics import pairwise_distances
 from sklearn.metrics import pairwise_distances_argmin_min
 from sklearn.utils import check_array
 
-from ekmeans.cluster_utils import merge_close_clusters
-from ekmeans.cluster_utils import print_status
+from ekmeans.utils import merge_close_clusters
+from ekmeans.utils import print_status
 from ekmeans.logger import initialize_logger
 
 
