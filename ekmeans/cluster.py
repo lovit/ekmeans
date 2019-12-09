@@ -88,7 +88,7 @@ class EKMeans:
                 X.shape[0], self.n_clusters))
 
 def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
-    max_iter, tol, init, random_state, verbose, logger=None):
+    coarse_iter, max_iter, tol, init, random_state, verbose, logger=None):
 
     """
     Arguments
@@ -109,6 +109,8 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
         Maximum number of rounds
     coverage : float
         Target percentage of the data allocated to corresponding cluster.
+    coarse_iter : int
+        The number of iteration for k-means only with not-assigned data
     max_iter : int
         Maximum number of repetition
     tol : float
@@ -143,16 +145,27 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
 
     for depth in range(1, max_depth_ + 1):
         if centers is None:
+            max_iter_ = max_iter + coarse_iter
             centers = initialize(X, n_init, init, random_state)
+
         else:
+            max_iter_ = max_iter
             indices = np.where(labels == -1)[0]
             Xs = X[indices]
             centers_new = initialize(Xs, n_init, init, random_state)
+
+            if coarse_iter > 0:
+                prefix = f'round: {depth}/{max_depth} coarse-'
+                sub_labels = -np.ones(indices.shape[0])
+                centers_new, sub_labels = ekmeans_core(Xs, centers_new, metric, sub_labels,
+                    coarse_iter, tol, epsilon, min_size, verbose, prefix, logger)
+                labels[indices] = sub_labels
+
             centers = np.vstack([centers, centers_new])
 
-        prefix = f'round: {depth}/{max_depth} '
+        prefix = f'round: {depth}/{max_depth} full-'
         centers, labels = ekmeans_core(X, centers, metric, labels,
-            max_iter, tol, epsilon, min_size, verbose, prefix, logger)
+            max_iter_, tol, epsilon, min_size, verbose, prefix, logger)
 
         n_assigned = np.where(labels >= 0)[0].shape[0]
         percent = n_assigned / n_data
@@ -230,6 +243,8 @@ def ekmeans_core(X, centers, metric, labels, max_iter,
         # convergence check
         diff, n_changes, early_stop = check_convergence(
             centers, labels, centers_, labels_, tol, metric)
+        if i_iter == max_iter:
+            early_stop = False
 
         # reinitialize empty clusters
         if np.where(cluster_size == 0)[0].shape[0] > 0:
@@ -339,6 +354,8 @@ def kmeans_core(X, centers, metric, labels, max_iter, tol, verbose, logger=None)
         # convergence check
         diff, n_changes, early_stop = check_convergence(
             centers, labels, centers_, labels_, tol, metric)
+        if i_iter == max_iter:
+            early_stop = False
 
         # reinitialize empty clusters
         n_empty_clusters = np.where(cluster_size == 0)[0].shape[0]
