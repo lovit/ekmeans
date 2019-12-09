@@ -40,8 +40,8 @@ To label clusters
 from ekmeans import proportion_keywords
 import numpy as np
 
-centers = ekmeans.cluster_centers_
-labels = ekmeans.labels_
+centers = model.cluster_centers_
+labels = model.labels_
 labels = labels[np.where(labels >= 0)[0]]
 cluster_size = np.bincount(labels, minlength=centers.shape[0])
 
