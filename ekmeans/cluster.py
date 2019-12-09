@@ -310,7 +310,7 @@ def kmeans_core(X, centers, metric, labels, max_iter, tol, verbose):
     begin_time = time()
 
     # repeat
-    for i_iter in range(1, max_iter):
+    for i_iter in range(1, max_iter + 1):
 
         # training
         labels_, dist = reassign(X, centers, metric)
