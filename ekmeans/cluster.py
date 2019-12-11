@@ -113,9 +113,6 @@ class EKMeans:
         if self.warm_start:
             self.depth_begin += self.max_depth
 
-        if logger is not None:
-            logger.log(-1, -1, labels_, path=f'{logger.log_dir}/before_postprocessing_labels.txt')
-
         if self.postprocessing:
             n_before = np.where(np.unique(labels_) >= 0)[0].shape[0]
             self.cluster_centers_, labels_, _ = \

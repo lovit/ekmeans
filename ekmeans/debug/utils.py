@@ -34,10 +34,11 @@ def draw_scatterplot(X, labels, title=None, toolbar_location=None, n_labels=-1, 
         Scatterplot figure
     """
     coverage = 100 * np.where(labels >= 0)[0].shape[0] / labels.shape[0]
+    n_clusters = np.where(np.unique(labels) >= 0)[0].shape[0]
     if title is not None:
-        title = f'{title} (covered {coverage:.4}%)'
+        title = f'{title} (covered {coverage:.4}%, n clusters = {n_clusters})'
     else:
-        title = f'{coverage:.4}%'
+        title = f'{coverage:.4}%, n clusters = {n_clusters}'
 
     data_indices = np.where(labels >= 0)[0]
     noise_indices = np.where(labels == -1)[0]
@@ -70,6 +71,8 @@ def draw_scatterplots_batch(X, log_dir, n_labels=-1,
         filename = path.split("/")[-1][:-4]
         labels = load_label(path)
         prefix = path_to_prefix(path)
+        if prefix == 'labels':
+            n_labels = -1
         fig = draw_scatterplot(X, labels, prefix, n_labels=n_labels, show_inline=False)
         fig.height = height
         fig.width = width
@@ -103,7 +106,6 @@ def sort_paths(paths):
         return int(r[5:]), int(i[4:])
 
     paths_sub0 = sorted(paths_sub0, key=key)
-    paths_sub1 = sorted(paths_sub1)
     return paths_sub0 + paths_sub1
 
 def load_label(path):
