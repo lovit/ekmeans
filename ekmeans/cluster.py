@@ -12,6 +12,7 @@ from ekmeans.utils import verbose_message
 from ekmeans.utils import as_minute
 from ekmeans.utils import filter_infrequents
 from ekmeans.utils import now
+from ekmeans.utils import merge_close_clusters
 from ekmeans.logger import build_logger
 
 
@@ -111,6 +112,18 @@ class EKMeans:
 
         if self.warm_start:
             self.depth_begin += self.max_depth
+
+        if logger is not None:
+            logger.log(-1, -1, labels_, path=f'{logger.log_dir}/before_postprocessing_labels.txt')
+
+        if self.postprocessing:
+            n_before = np.where(np.unique(labels_) >= 0)[0].shape[0]
+            self.cluster_centers_, labels_, _ = \
+                merge_close_clusters(self.cluster_centers_,
+                    labels_, self.epsilon, self.metric)
+            n_after = np.where(np.unique(labels_) >= 0)[0].shape[0]
+            if self.verbose:
+                print(f'Merged similar clusters. num clusters {n_before} -> {n_after}')
 
         n_before = np.where(labels_ >= 0)[0].shape[0]
         self.labels_ = filter_infrequents(labels_, min_size)

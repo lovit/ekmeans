@@ -6,12 +6,12 @@ from sklearn.utils.extmath import safe_sparse_dot
 from time import time
 
 
-def merge_close_clusters(centers, labels, threshold):
+def merge_close_clusters(centers, labels, threshold, metric='euclidean'):
     n_clusters, n_terms = centers.shape
     cluster_size = np.bincount(labels[np.where(labels >= 0)[0]], minlength=n_clusters)
     sorted_indices, _ = zip(*sorted(enumerate(cluster_size), key=lambda x:-x[1]))
 
-    groups = _grouping_with_centers(centers, threshold, sorted_indices)
+    groups = _grouping_with_centers(centers, threshold, sorted_indices, metric)
     centers_ = np.dot(np.diag(cluster_size), centers)
 
     n_groups = len(groups)
@@ -40,8 +40,8 @@ def _closest_group(groups, c, pdist, max_dist):
             closest = g
     return closest
 
-def _grouping_with_centers(centers, max_dist, sorted_indices):
-    pdist = pairwise_distances(centers, metric='cosine')
+def _grouping_with_centers(centers, max_dist, sorted_indices, metric):
+    pdist = pairwise_distances(centers, metric=metric)
     return _grouping_with_pdist(pdist, max_dist, sorted_indices)
 
 def _grouping_with_pdist(pdist, max_dist, sorted_indices):
