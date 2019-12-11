@@ -2,61 +2,46 @@ import json
 import numpy as np
 import os
 
+from .utils import now
 
-def initialize_logger(log_dir):
+
+def build_logger(log_dir, ekmeans):
     if log_dir == None:
         return None
 
     log_dir = '{}/{}/'.format(log_dir, get_excution_time())
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
-    return Logger(log_dir)
+    return Logger(log_dir, parameters)
+
+def get_attributes(ekmeans):
+    parameters = {
+        'n_clusters': ekmeans.n_clusters,
+        'metric': ekmeans.metric,
+        'epsilon': ekmeans.epsilon,
+        'min_size': ekmeans.min_size,
+        'max_depth': ekmeans.max_depth,
+        'coverage': ekmeans.coverage,
+        'coarse_iter': ekmeans.coarse_iter,
+        'max_iter': ekmeans.max_iter,
+        'tol': ekmeans.tol,
+        'init': ekmeans.init if isinstance(ekmeans.init, str) else 'callable',
+        'random_state': ekmeans.random_state,
+        'postprocessing': ekmeans.postprocessing if isinstance(ekmeans.postprocessing, str) else 'callable',
+    }
+    return parameters
 
 class Logger:
-    def __init__(self, log_dir, n_samples):
+    def __init__(self, log_dir, parameters):
         self.log_dir = log_dir
-        self.centers = []
-        self.cum_clusters = 0
-        self.labels = -1 * np.ones(n_samples, dtype=np.int)
 
-    def log_configure(self, ekmeans):
-        params = {
-            'n_clusters' : ekmeans.n_clusters,
-            'epsilon' : ekmeans.epsilon,
-            'max_depth': ekmeans.max_depth,
-            'min_size': ekmeans.min_size,
-            'max_iter': ekmeans.max_iter,
-            'tol': ekmeans.tol,
-            'init': ekmeans.init,
-            'metric': ekmeans.metric,
-            'random_state': str(ekmeans.random_state),
-            'postprocessing': ekmeans.postprocessing
-        }
-        path = '{}/configure.json'.format(self.log_dir)
+        # save configuration
+        path = f'{log_dir}/configure.json'
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(params, f, ensure_ascii=False, indent=2)
 
-    def log(self, suffix, labels=None, centers=None, sub_to_idx=None):
-        if labels is None:
-            labels_ = self.labels.copy()
-            centers_ = np.vstack(self.centers)
-        else:
-            labels_, centers_ = self.markup(labels, centers, sub_to_idx)
-
-        path = '{}/{}_label.txt'.format(self.log_dir, suffix)
+    def log(self, depth, iter, labels, centers):
+        path = f'{self.log_dir}/{depth}_{iter}_label.txt'
         np.savetxt(path, labels_, '%d')
-        path = '{}/{}_center.txt'.format(self.log_dir, suffix)
+        path = f'{self.log_dir}/{depth}_{iter}_center.csv'
         np.savetxt(path, centers_, '%.8f')
-
-    def cumulate(self, centers, labels, sub_to_idx):
-        self.centers.append(centers)
-        self.labels[sub_to_idx] = labels
-        self.cum_clusters += centers.shape[0]
-
-    def markup(self, labels, centers, sub_to_idx):
-        labels = labels.copy()
-        labels[np.where(labels >= 0)[0]] += self.cum_clusters
-        labels_ = self.labels.copy()
-        labels_[sub_to_idx] = labels
-        centers_ = np.vstack([c for c in self.centers] + [centers])
-        return labels_, centers_

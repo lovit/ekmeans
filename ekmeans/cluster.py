@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import os
 import scipy as sp
 from sklearn.metrics import pairwise_distances
 from sklearn.metrics import pairwise_distances_argmin_min
@@ -10,13 +11,13 @@ from ekmeans.utils import check_convergence
 from ekmeans.utils import verbose_message
 from ekmeans.utils import as_minute
 from ekmeans.utils import filter_infrequents
-from ekmeans.logger import initialize_logger
+from ekmeans.logger import build_logger
 
 
 class EKMeans:
     def __init__(self, n_clusters, metric='cosine', epsilon=0.6, min_size=3, max_depth=10,
         coverage=0.95, coarse_iter=5, max_iter=5, tol=0.0001, init='random',
-        random_state=None, postprocessing=False, verbose=True, log_dir=None):
+        random_state=None, postprocessing=False, verbose=True):
 
         self.n_clusters = n_clusters
         self.metric = metric
@@ -31,20 +32,23 @@ class EKMeans:
         self.random_state = random_state
         self.postprocessing = postprocessing
         self.verbose = verbose
-        #self.logger = initialize_logger(log_dir)
-        # TODO
-        self.logger = None
 
-    def fit_predict(self, X, min_size=-1):
+    def fit_predict(self, X, min_size=-1, log_dir=None):
         """Compute cluster centers and predict cluster index for each sample.
 
         Convenience method; equivalent to calling fit(X) followed by
         predict(X).
 
-        Parameters
-        ----------
-        X : sparse matrix, shape = [n_samples, n_features]
-            New data to transform.
+        Arguments
+        ---------
+        X : numpy.ndarray or scipy.sparse.csr_matrix
+            Training data, shape=(n_samples, n_features)
+        min_size : int
+            Minimum cluster size threshold to use at the final filtering.
+            Default value -1 means that cluster sizes are larger than `self.min_size`
+        log_dir : str or None
+            Directory path to log files
+            If not None, it records changes of labels at each iteration step.
 
         Returns
         -------
@@ -57,8 +61,30 @@ class EKMeans:
         self.fit(X)
         return self.transform(X)
 
-    def fit(self, X, min_size=-1):
+    def fit(self, X, min_size=-1, log_dir=None):
+        """Compute cluster centers.
+
+        Convenience method; equivalent to calling fit(X) followed by
+        predict(X).
+
+        Arguments
+        ---------
+        X : numpy.ndarray or scipy.sparse.csr_matrix
+            Training data, shape=(n_samples, n_features)
+        min_size : int
+            Minimum cluster size threshold to use at the final filtering.
+            Default value -1 means that cluster sizes are larger than `self.min_size`
+        log_dir : str or None
+            Directory path to log files
+            If not None, it records changes of labels at each iteration step.
+
+        Returns
+        -------
+        self : EKmeans
+            Trained model instance
+        """
         self._check_fit_data(X)
+        logger = build_logger(log_dir, self)
         self.cluster_centers_, labels_ = \
             ekmeans(X, self.n_clusters, self.metric, self.epsilon,
                 self.min_size, self.max_depth, self.coverage,
