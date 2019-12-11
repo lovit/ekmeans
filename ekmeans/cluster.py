@@ -34,7 +34,7 @@ class EKMeans:
         self.postprocessing = postprocessing
         self.verbose = verbose
 
-    def fit_predict(self, X, min_size=-1, log_dir=None, timeprefix=True):
+    def fit_predict(self, X, min_size=-1, log_dir=None, time_prefix=True):
         """Compute cluster centers and predict cluster index for each sample.
 
         Convenience method; equivalent to calling fit(X) followed by
@@ -50,7 +50,7 @@ class EKMeans:
         log_dir : str or None
             Directory path to log files
             If not None, it records changes of labels at each iteration step.
-        timeprefix : Boolean
+        time_prefix : Boolean
             If True, it saves logs and temporal labels at `log_dir/yy-mm-dd_hh-mm-ss`
             Else, it saves them at `log_dir/`
 
@@ -65,7 +65,7 @@ class EKMeans:
         self.fit(X)
         return self.transform(X)
 
-    def fit(self, X, min_size=-1, log_dir=None, timeprefix=True):
+    def fit(self, X, min_size=-1, log_dir=None, time_prefix=True):
         """Compute cluster centers.
 
         Convenience method; equivalent to calling fit(X) followed by
@@ -81,7 +81,7 @@ class EKMeans:
         log_dir : str or None
             Directory path to log files
             If not None, it records changes of labels at each iteration step.
-        timeprefix : Boolean
+        time_prefix : Boolean
             If True, it saves logs and temporal labels at `log_dir/yy-mm-dd_hh-mm-ss`
             Else, it saves them at `log_dir/`
 
@@ -91,7 +91,7 @@ class EKMeans:
             Trained model instance
         """
         self._check_fit_data(X)
-        logger = build_logger(log_dir, self)
+        logger = build_logger(log_dir, self, time_prefix)
         self.cluster_centers_, labels_ = \
             ekmeans(X, self.n_clusters, self.metric, self.epsilon,
                 self.min_size, self.max_depth, self.coverage,

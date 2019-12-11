@@ -5,7 +5,7 @@ import os
 from .utils import now
 
 
-def build_logger(log_dir, ekmeans, time_prefix=False):
+def build_logger(log_dir, ekmeans, time_prefix=True):
     if log_dir == None:
         return None
 
@@ -41,6 +41,7 @@ class Logger:
     def __init__(self, log_dir, parameters):
         self.log_dir = log_dir
         self.messages = []
+        print(f'Logging labels and verbose message at {log_dir}')
 
         # save configuration
         path = f'{log_dir}/configure.json'
