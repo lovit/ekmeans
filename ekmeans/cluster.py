@@ -234,7 +234,7 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage, coarse_it
             centers = np.vstack([centers, centers_new])
 
         # logging coarse learning
-        if (logger is not None) and (coarse_iter > 0):
+        if (logger is not None) and (coarse_iter > 0) and (depth > depth_begin + 1):
             logger.log(depth, 0, labels, f'{now()}  [round: {depth}/{max_depth_ + depth_begin}] save coarse learning')
 
         prefix = f'round: {depth}/{max_depth + depth_begin} full-'
