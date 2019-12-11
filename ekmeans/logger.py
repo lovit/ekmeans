@@ -1,12 +1,7 @@
-from datetime import datetime
 import json
 import numpy as np
 import os
 
-
-def get_excution_time():
-    now = datetime.now()
-    return datetime.strftime(now, '%y-%m-%d_%H-%M-%S')
 
 def initialize_logger(log_dir):
     if log_dir == None:

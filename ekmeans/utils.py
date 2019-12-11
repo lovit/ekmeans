@@ -1,3 +1,4 @@
+from datetime import datetime
 import numpy as np
 from sklearn.metrics import pairwise_distances
 from sklearn.metrics.pairwise import paired_distances
@@ -148,9 +149,9 @@ def verbose_message(i_iter, max_iter, diff, n_changes, n_assigneds,
     strf : str
         String formed verbose message
     """
-    comsumed_t = time() - begin_time
-    remain_t = (max_iter - i_iter) * comsumed_t / i_iter
-    ct = as_minute(comsumed_t)
+    elapsed_t = time() - begin_time
+    remain_t = (max_iter - i_iter) * elapsed_t / i_iter
+    ct = as_minute(elapsed_t)
     rt = as_minute(remain_t)
     if rt:
         rt = f'(-{rt})'
@@ -185,3 +186,7 @@ def as_minute(sec):
     if s > 1:
         strf += ((' ' if strf else '') + f'{s}s')
     return strf
+
+def now():
+    now = datetime.now()
+    return datetime.strftime(now, '%y-%m-%d_%H-%M-%S')
