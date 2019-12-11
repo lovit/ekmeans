@@ -16,7 +16,7 @@ from ekmeans.logger import build_logger
 
 
 class EKMeans:
-    def __init__(self, n_clusters, metric='cosine', epsilon=0.6, min_size=3, max_depth=10,
+    def __init__(self, n_clusters, metric='euclidean', epsilon=0.6, min_size=3, max_depth=10,
         coverage=0.95, coarse_iter=5, max_iter=5, tol=0.0001, init='random',
         random_state=None, postprocessing=False, warm_start=False, verbose=True):
 
@@ -63,7 +63,7 @@ class EKMeans:
         labels : array, shape [n_samples,]
             Index of the cluster each sample belongs to.
         """
-        return self.fit(X, min_size, log_dir, timeprefix).labels_
+        return self.fit(X, min_size, log_dir, time_prefix).labels_
 
     def fit_transform(self, X):
         self.fit(X)
