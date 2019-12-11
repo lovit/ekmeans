@@ -18,7 +18,7 @@ from ekmeans.logger import build_logger
 class EKMeans:
     def __init__(self, n_clusters, metric='cosine', epsilon=0.6, min_size=3, max_depth=10,
         coverage=0.95, coarse_iter=5, max_iter=5, tol=0.0001, init='random',
-        random_state=None, postprocessing=False, verbose=True):
+        random_state=None, postprocessing=False, warm_start=False, verbose=True):
 
         self.n_clusters = n_clusters
         self.metric = metric
@@ -32,7 +32,11 @@ class EKMeans:
         self.init = init
         self.random_state = random_state
         self.postprocessing = postprocessing
+        self.warm_start = warm_start
         self.verbose = verbose
+
+        self.cluster_centers_ = None
+        self.depth_begin = 0
 
     def fit_predict(self, X, min_size=-1, log_dir=None, time_prefix=True):
         """Compute cluster centers and predict cluster index for each sample.
@@ -93,11 +97,20 @@ class EKMeans:
         self._check_fit_data(X)
         logger = build_logger(log_dir, self, time_prefix)
 
+        if self.warm_start:
+            cluster_centers_ = self.cluster_centers_
+        else:
+            cluster_centers_ = None
+
         self.cluster_centers_, labels_ = \
             ekmeans(X, self.n_clusters, self.metric, self.epsilon,
                 self.min_size, self.max_depth, self.coverage,
                 self.coarse_iter, self.max_iter, self.tol, self.init,
-                self.random_state, self.verbose, logger)
+                self.random_state, self.verbose, cluster_centers_,
+                self.depth_begin, logger)
+
+        if self.warm_start:
+            self.depth_begin += self.max_depth
 
         n_before = np.where(labels_ >= 0)[0].shape[0]
         self.labels_ = filter_infrequents(labels_, min_size)
@@ -138,8 +151,8 @@ class EKMeans:
             raise ValueError("n_samples=%d should be >= n_clusters=%d" % (
                 X.shape[0], self.n_clusters))
 
-def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
-    coarse_iter, max_iter, tol, init, random_state, verbose, logger=None):
+def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage, coarse_iter,
+    max_iter, tol, init, random_state, verbose, centers=None, depth_begin=0, logger=None):
 
     """
     Arguments
@@ -173,6 +186,10 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
         Random seed
     verbose : Boolean
         If True, it shows training progress.
+    centers : numpy.ndarray or None
+        If it is not None, reuse it as initial centroid vectors
+    depth_begin : int
+        Depth begin index
     logger : Logger
         If not None, logging all cluster lables for each round and iteration
 
@@ -189,37 +206,38 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
         max_depth_ = max_depth
 
     n_clusters = 0
-    centers = None
     n_data = X.shape[0]
     labels = -np.ones(n_data)
     t = time()
 
-    for depth in range(1, max_depth_ + 1):
+    for depth in range(depth_begin + 1, max_depth_ + depth_begin + 1):
         if centers is None:
-            max_iter_ = max_iter + coarse_iter
             centers = initialize(X, n_init, init, random_state)
 
+        if depth == depth_begin + 1:
+            max_iter_ = max_iter + coarse_iter
         else:
             max_iter_ = max_iter
+
+        if (depth > depth_begin + 1) and (coarse_iter > 0):
             indices = np.where(labels == -1)[0]
             Xs = X[indices]
             centers_new = initialize(Xs, n_init, init, random_state)
+            sub_labels = -np.ones(indices.shape[0])
+            prefix = f'round: {depth}/{max_depth + depth_begin} coarse-'
 
-            if coarse_iter > 0:
-                prefix = f'round: {depth}/{max_depth} coarse-'
-                sub_labels = -np.ones(indices.shape[0])
-                # no-logging
-                centers_new, sub_labels = ekmeans_core(Xs, centers_new, metric, sub_labels,
-                    coarse_iter, tol, epsilon, min_size, verbose, prefix, -1, None)
-                labels[indices] = sub_labels
+            # no-logging
+            centers_new, sub_labels = ekmeans_core(Xs, centers_new, metric, sub_labels,
+                coarse_iter, tol, epsilon, min_size, verbose, prefix, -1, None)
 
+            labels[indices] = sub_labels
             centers = np.vstack([centers, centers_new])
 
         # logging coarse learning
         if (logger is not None) and (coarse_iter > 0):
-            logger.log(depth, 0, labels, f'{now()}  [round: {depth}/{max_depth_}] save coarse learning')
+            logger.log(depth, 0, labels, f'{now()}  [round: {depth}/{max_depth_ + depth_begin}] save coarse learning')
 
-        prefix = f'round: {depth}/{max_depth} full-'
+        prefix = f'round: {depth}/{max_depth + depth_begin} full-'
         centers, labels = ekmeans_core(X, centers, metric, labels,
             max_iter_, tol, epsilon, min_size, verbose, prefix, depth, logger)
 
@@ -230,7 +248,7 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
             t_strf = as_minute(time() - t)
             if t_strf:
                 t_strf = f', time: {t_strf}'
-            print(f'[round: {depth}/{max_depth}] #assigned: {n_assigned} ({percent_strf}){t_strf}\n')
+            print(f'[round: {depth}/{max_depth + depth_begin}] #assigned: {n_assigned} ({percent_strf}){t_strf}\n')
 
         if (coverage > 0) and (percent > coverage):
             print(f'Reached the target coverage {100 * coverage:.4}%')
