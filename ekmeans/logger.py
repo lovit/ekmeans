@@ -50,7 +50,7 @@ class Logger:
 
     def log(self, depth, iter, labels, message=None, path=None):
         if path is None:
-            path = f'{self.log_dir}/round{depth}_iter{iter}_label.txt'
+            path = f'{self.log_dir}/round{depth}_iter{iter}_labels.txt'
         np.savetxt(path, labels, '%d')
         if message is not None:
             self.messages.append(message)

@@ -8,8 +8,7 @@ from IPython.display import display, Image
 from soydata.visualize import scatterplot
 
 
-def draw_scatterplot(X, labels, r=-1, i=-1,
-    toolbar_location=None, n_labels=-1, show_inline=True):
+def draw_scatterplot(X, labels, title=None, toolbar_location=None, n_labels=-1, show_inline=True):
 
     """
     It draws scatterplot. The color of not assigned points is `rightgrey`.
@@ -35,8 +34,8 @@ def draw_scatterplot(X, labels, r=-1, i=-1,
         Scatterplot figure
     """
     coverage = 100 * np.where(labels >= 0)[0].shape[0] / labels.shape[0]
-    if r >= 0 and i >= 0:
-        title = f'round {r}, iter = {i} (covered {coverage:.4}%)'
+    if title is not None:
+        title = f'{title} (covered {coverage:.4}%)'
     else:
         title = f'{coverage:.4}%'
 
@@ -64,13 +63,14 @@ def draw_scatterplots_batch(X, log_dir, n_labels=-1,
 
     figures = []
     figpaths = []
-    paths = sorted(glob(f'{log_dir}/round*label.txt'), key=lambda p:parse_index(p))
+    paths = glob(f'{log_dir}/*labels.txt')
+    paths = sort_paths(paths)
 
     for path in paths:
         filename = path.split("/")[-1][:-4]
         labels = load_label(path)
-        r, i = parse_index(path)
-        fig = draw_scatterplot(X, labels, r, i, n_labels=n_labels, show_inline=False)
+        prefix = path_to_prefix(path)
+        fig = draw_scatterplot(X, labels, prefix, n_labels=n_labels, show_inline=False)
         fig.height = height
         fig.width = width
         figures.append(fig)
@@ -85,18 +85,32 @@ def draw_scatterplots_batch(X, log_dir, n_labels=-1,
 
     return figures
 
-def parse_index(filename):
-    r, i, _ = filename.split('/')[-1].split('_')
-    r = int(r[5:])
-    i = int(i[4:])
-    return r, i
+def path_to_prefix(filename):
+    filename = filename.split('/')[-1]
+    if filename[:5] == 'round':
+        r, i, _ = filename.split('/')[-1].split('_')
+        r = int(r[5:])
+        i = int(i[4:])
+        return f'round {r}, iter {i}'
+    return filename.rsplit('.txt')[0]
+
+def sort_paths(paths):
+    paths_sub0 = [p for p in paths if p.split('/')[-1][:5] == 'round']
+    paths_sub1 = [p for p in paths if p.split('/')[-1][:5] != 'round']
+
+    def key(path):
+        r, i, _ = path.split('/')[-1].split('_')
+        return int(r[5:]), int(i[4:])
+
+    paths_sub0 = sorted(paths_sub0, key=key)
+    paths_sub1 = sorted(paths_sub1)
+    return paths_sub0 + paths_sub1
 
 def load_label(path):
     return np.loadtxt(path)
 
 def prepare_ipython_image_slider(image_dir):
-    paths = glob(f'{image_dir}/*.png')
-    paths = sorted(paths, key=lambda p: parse_index(p))
+    paths = sort_paths(glob(f'{image_dir}/*.png'))
 
     def select(index):
         display(Image(paths[index]))
