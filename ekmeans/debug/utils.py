@@ -1,8 +1,12 @@
 import numpy as np
+import os
+
+from bokeh.io import export_png, save
+from glob import glob
 from soydata.visualize import scatterplot
 
 
-def draw_scatterplot(X, labels, r=-1, i=-1, show_inline=True):
+def draw_scatterplot(X, labels, r=-1, i=-1, show_inline=True, toolbar_location=None):
     """
     It draws scatterplot. The color of not assigned points is `rightgrey`.
     And each cluster is painted with a different color.
@@ -36,12 +40,51 @@ def draw_scatterplot(X, labels, r=-1, i=-1, show_inline=True):
     noise_indices = np.where(labels == -1)[0]
 
     p = scatterplot(X[data_indices], labels=labels[data_indices], size=3,
-        title=title, show_inline=False, toolbar_location=None)
+        title=title, show_inline=False, toolbar_location=toolbar_location)
     p = scatterplot(X[noise_indices], size=3, color='lightgrey',
         p=p, show_inline=show_inline)
 
     return p
 
-def draw_scatterplots_from_files(log_dir):
+def draw_scatterplots_batch(X, log_dir, figure_dir=None, height=600, width=600, figure_type='png'):
 
-    raise NotImplemented
+    if figure_type == 'png':
+        toolbar_location = None
+        export = export_png
+    elif figure_type == 'html':
+        toolbar_location = 'right'
+        export = save
+    else:
+        raise ValueError("`figure_type` must be one of ['png', 'html']")
+
+    figures = []
+    figpaths = []
+    paths = sorted(glob(f'{log_dir}/round*label.txt'), key=lambda p:parse_index(p))
+
+    for path in paths:
+        filename = path.split("/")[-1][:-4]
+        labels = load_label(path)
+        r, i = parse_index(path)
+        fig = draw_scatterplot(X, labels, r, i, show_inline=False)
+        fig.height = height
+        fig.width = width
+        figures.append(fig)
+        figpaths.append(f'{figure_dir}/{filename}.{figure_type}')
+
+    if figure_dir is not None:
+        if not os.path.exists(figure_dir):
+            os.makedirs(figure_dir)
+        for fig, figpath in zip(figures, figpaths):
+            export(fig, figpath)
+            print(f'saved {figpath}')
+
+    return figures
+
+def parse_index(filename):
+    r, i, _ = filename.split('/')[-1].split('_')
+    r = int(r[5:])
+    i = int(i[4:])
+    return r, i
+
+def load_label(path):
+    return np.loadtxt(path)
