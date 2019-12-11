@@ -19,7 +19,11 @@ from ekmeans.logger import build_logger
 class EKMeans:
     def __init__(self, n_clusters, metric='euclidean', epsilon=0.6, min_size=3, max_depth=10,
         coverage=0.95, coarse_iter=5, max_iter=5, tol=0.0001, init='random',
-        random_state=None, postprocessing=False, warm_start=False, verbose=True):
+        random_state=None, postprocessing=False, merge_similar=False,
+        warm_start=False, verbose=True):
+
+        if merge_similar:
+            postprocessing = False
 
         self.n_clusters = n_clusters
         self.metric = metric
@@ -33,6 +37,7 @@ class EKMeans:
         self.init = init
         self.random_state = random_state
         self.postprocessing = postprocessing
+        self.merge_similar = merge_similar
         self.warm_start = warm_start
         self.verbose = verbose
 
@@ -108,7 +113,7 @@ class EKMeans:
                 self.min_size, self.max_depth, self.coverage,
                 self.coarse_iter, self.max_iter, self.tol, self.init,
                 self.random_state, self.verbose, cluster_centers_,
-                self.depth_begin, logger)
+                self.depth_begin, self.merge_similar, logger)
 
         if self.warm_start:
             self.depth_begin += self.max_depth
@@ -161,8 +166,9 @@ class EKMeans:
             raise ValueError("n_samples=%d should be >= n_clusters=%d" % (
                 X.shape[0], self.n_clusters))
 
-def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage, coarse_iter,
-    max_iter, tol, init, random_state, verbose, centers=None, depth_begin=0, logger=None):
+def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
+    coarse_iter, max_iter, tol, init, random_state, verbose,
+    centers=None, depth_begin=0, merge_similar=False, logger=None):
 
     """
     Arguments
@@ -200,6 +206,8 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage, coarse_it
         If it is not None, reuse it as initial centroid vectors
     depth_begin : int
         Depth begin index
+    merge_similar : Boolean
+        If True, it merges similar clusters after execute `kmeans_core` for each round
     logger : Logger
         If not None, logging all cluster lables for each round and iteration
 
@@ -250,6 +258,16 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage, coarse_it
         prefix = f'round: {depth}/{max_depth + depth_begin} full-'
         centers, labels = ekmeans_core(X, centers, metric, labels,
             max_iter_, tol, epsilon, min_size, verbose, prefix, depth, logger)
+
+        if merge_similar:
+            n_before = centers.shape[0]
+            centers, labels, _ = merge_close_clusters(centers, labels, epsilon, metric)
+            n_after = centers.shape[0]
+            message = f'[round: {depth}/{max_depth_ + depth_begin}] merged similar clusters: {n_before} -> {n_after}'
+            if verbose:
+                print(message)
+            if (logger is not None):
+                logger.log(depth, max_iter_+1, labels, message)
 
         n_assigned = np.where(labels >= 0)[0].shape[0]
         percent = n_assigned / n_data
