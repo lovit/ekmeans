@@ -92,12 +92,28 @@ class EKMeans:
         """
         self._check_fit_data(X)
         logger = build_logger(log_dir, self, time_prefix)
+
         self.cluster_centers_, labels_ = \
             ekmeans(X, self.n_clusters, self.metric, self.epsilon,
                 self.min_size, self.max_depth, self.coverage,
                 self.coarse_iter, self.max_iter, self.tol, self.init,
                 self.random_state, self.verbose, logger)
+
+        n_before = np.where(labels_ >= 0)[0].shape[0]
         self.labels_ = filter_infrequents(labels_, min_size)
+        n_after = np.where(self.labels_ >= 0)[0].shape[0]
+        if (n_after < n_before) and (self.verbose):
+            n_data = X.shape[0]
+            p_before = 100 * n_before / n_data
+            p_after = 100 * n_after / n_data
+            n_clusters = np.where(np.unique(self.labels_) >= 0)[0].shape[0]
+            print(f'Filter out small clusters of which size is smaller than {min_size}.\n'\
+                  f'Assigned points: {n_before} -> {n_after} ({p_before:.4}% -> {p_after:.4}%)\n'\
+                  f'Found {n_clusters} clusters')
+
+        if logger is not None:
+            logger.log(-1, -1, self.labels_, path=f'{logger.log_dir}/labels.txt')
+
         return self
 
     def predict(self, X, min_size=-1):

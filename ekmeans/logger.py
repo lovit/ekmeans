@@ -48,8 +48,9 @@ class Logger:
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(parameters, f, ensure_ascii=False, indent=2)
 
-    def log(self, depth, iter, labels, message=None):
-        path = f'{self.log_dir}/round{depth}_iter{iter}_label.txt'
+    def log(self, depth, iter, labels, message=None, path=None):
+        if path is None:
+            path = f'{self.log_dir}/round{depth}_iter{iter}_label.txt'
         np.savetxt(path, labels, '%d')
         if message is not None:
             self.messages.append(message)
