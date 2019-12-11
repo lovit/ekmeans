@@ -33,7 +33,7 @@ class EKMeans:
         self.postprocessing = postprocessing
         self.verbose = verbose
 
-    def fit_predict(self, X, min_size=-1, log_dir=None):
+    def fit_predict(self, X, min_size=-1, log_dir=None, timeprefix=True):
         """Compute cluster centers and predict cluster index for each sample.
 
         Convenience method; equivalent to calling fit(X) followed by
@@ -49,19 +49,22 @@ class EKMeans:
         log_dir : str or None
             Directory path to log files
             If not None, it records changes of labels at each iteration step.
+        timeprefix : Boolean
+            If True, it saves logs and temporal labels at `log_dir/yy-mm-dd_hh-mm-ss`
+            Else, it saves them at `log_dir/`
 
         Returns
         -------
         labels : array, shape [n_samples,]
             Index of the cluster each sample belongs to.
         """
-        return self.fit(X, min_size).labels_
+        return self.fit(X, min_size, log_dir, timeprefix).labels_
 
     def fit_transform(self, X):
         self.fit(X)
         return self.transform(X)
 
-    def fit(self, X, min_size=-1, log_dir=None):
+    def fit(self, X, min_size=-1, log_dir=None, timeprefix=True):
         """Compute cluster centers.
 
         Convenience method; equivalent to calling fit(X) followed by
@@ -77,6 +80,9 @@ class EKMeans:
         log_dir : str or None
             Directory path to log files
             If not None, it records changes of labels at each iteration step.
+        timeprefix : Boolean
+            If True, it saves logs and temporal labels at `log_dir/yy-mm-dd_hh-mm-ss`
+            Else, it saves them at `log_dir/`
 
         Returns
         -------
@@ -89,7 +95,7 @@ class EKMeans:
             ekmeans(X, self.n_clusters, self.metric, self.epsilon,
                 self.min_size, self.max_depth, self.coverage,
                 self.coarse_iter, self.max_iter, self.tol, self.init,
-                self.random_state, self.verbose, self.logger)
+                self.random_state, self.verbose, logger)
         self.labels_ = filter_infrequents(labels_, min_size)
         return self
 
@@ -183,15 +189,16 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
             if coarse_iter > 0:
                 prefix = f'round: {depth}/{max_depth} coarse-'
                 sub_labels = -np.ones(indices.shape[0])
+                # no-logging
                 centers_new, sub_labels = ekmeans_core(Xs, centers_new, metric, sub_labels,
-                    coarse_iter, tol, epsilon, min_size, verbose, prefix, logger)
+                    coarse_iter, tol, epsilon, min_size, verbose, prefix, -1, None)
                 labels[indices] = sub_labels
 
             centers = np.vstack([centers, centers_new])
 
         prefix = f'round: {depth}/{max_depth} full-'
         centers, labels = ekmeans_core(X, centers, metric, labels,
-            max_iter_, tol, epsilon, min_size, verbose, prefix, logger)
+            max_iter_, tol, epsilon, min_size, verbose, prefix, depth, logger)
 
         n_assigned = np.where(labels >= 0)[0].shape[0]
         percent = n_assigned / n_data
@@ -212,7 +219,7 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
     return centers, labels
 
 def ekmeans_core(X, centers, metric, labels, max_iter,
-    tol, epsilon, min_size, verbose, prefix='', logger=None):
+    tol, epsilon, min_size, verbose, prefix='', depth=-1, logger=None):
 
     """
     Arguments
@@ -240,6 +247,8 @@ def ekmeans_core(X, centers, metric, labels, max_iter,
         If True, it shows training progress.
     prefix : str
         Verbose prefix
+    depth : int
+        Round index which used for logging
     logger : Logger
         If not None, logging all cluster lables for each round and iteration
 
@@ -281,13 +290,14 @@ def ekmeans_core(X, centers, metric, labels, max_iter,
         labels = labels_
 
         # verbose
+        strf = verbose_message(i_iter, max_iter, diff, n_changes, n_assigned,
+            n_clusters, inner_dist, early_stop, begin_time, prefix)
         if verbose:
-            strf = verbose_message(i_iter, max_iter, diff, n_changes, n_assigned,
-                n_clusters, inner_dist, early_stop, begin_time, prefix)
             print(strf)
 
-        # TODO
         # logging
+        if logger is not None:
+            logger.log(depth, i_iter, labels, centers, strf)
 
         if early_stop:
             break

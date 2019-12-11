@@ -5,13 +5,19 @@ import os
 from .utils import now
 
 
-def build_logger(log_dir, ekmeans):
+def build_logger(log_dir, ekmeans, time_prefix=False):
     if log_dir == None:
         return None
 
-    log_dir = '{}/{}/'.format(log_dir, get_excution_time())
+    if time_prefix:
+        log_dir = '{}/{}/'.format(log_dir, now())
+    if log_dir[-1] != '/':
+        log_dir += '/'
+
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
+
+    parameters = get_attributes(ekmeans)
     return Logger(log_dir, parameters)
 
 def get_attributes(ekmeans):
@@ -34,14 +40,25 @@ def get_attributes(ekmeans):
 class Logger:
     def __init__(self, log_dir, parameters):
         self.log_dir = log_dir
+        self.messages = []
 
         # save configuration
         path = f'{log_dir}/configure.json'
         with open(path, 'w', encoding='utf-8') as f:
-            json.dump(params, f, ensure_ascii=False, indent=2)
+            json.dump(parameters, f, ensure_ascii=False, indent=2)
 
-    def log(self, depth, iter, labels, centers):
-        path = f'{self.log_dir}/{depth}_{iter}_label.txt'
-        np.savetxt(path, labels_, '%d')
-        path = f'{self.log_dir}/{depth}_{iter}_center.csv'
-        np.savetxt(path, centers_, '%.8f')
+    def log(self, depth, iter, labels, centers, message=None):
+        path = f'{self.log_dir}/round{depth}_iter{iter}_label.txt'
+        np.savetxt(path, labels, '%d')
+        path = f'{self.log_dir}/round{depth}_iter{iter}_center.csv'
+        np.savetxt(path, centers, '%.8f')
+        if message is not None:
+            self.messages.append(message)
+
+    def save_messages(self, path=None):
+        if (path is None) or (not path):
+            path = f'{self.log_dir}/logs.txt'
+        with open(path, 'w', encoding='utf-8') as f:
+            for msg in self.messages:
+                f.write(f'{msg.strip()}\n')
+
