@@ -297,7 +297,7 @@ def ekmeans_core(X, centers, metric, labels, max_iter,
 
         # logging
         if logger is not None:
-            logger.log(depth, i_iter, labels, centers, strf)
+            logger.log(depth, i_iter, labels, strf)
 
         if early_stop:
             break
