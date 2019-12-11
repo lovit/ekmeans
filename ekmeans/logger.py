@@ -59,4 +59,3 @@ class Logger:
         with open(path, 'w', encoding='utf-8') as f:
             for msg in self.messages:
                 f.write(f'{msg.strip()}\n')
-

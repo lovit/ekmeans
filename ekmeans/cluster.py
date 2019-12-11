@@ -11,6 +11,7 @@ from ekmeans.utils import check_convergence
 from ekmeans.utils import verbose_message
 from ekmeans.utils import as_minute
 from ekmeans.utils import filter_infrequents
+from ekmeans.utils import now
 from ekmeans.logger import build_logger
 
 
@@ -213,6 +214,9 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
             print(f'Reached the target coverage {100 * coverage:.4}%')
             break
 
+    if logger is not None:
+        logger.save_messages()
+
     # TODO
     # postprocessing: merge similar clusters
 
@@ -297,7 +301,7 @@ def ekmeans_core(X, centers, metric, labels, max_iter,
 
         # logging
         if logger is not None:
-            logger.log(depth, i_iter, labels, strf)
+            logger.log(depth, i_iter, labels, f'{now()}  {strf}')
 
         if early_stop:
             break
