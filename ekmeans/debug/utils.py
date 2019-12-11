@@ -3,6 +3,8 @@ import os
 
 from bokeh.io import export_png, save
 from glob import glob
+from ipywidgets import interactive, IntSlider
+from IPython.display import display, Image
 from soydata.visualize import scatterplot
 
 
@@ -88,3 +90,14 @@ def parse_index(filename):
 
 def load_label(path):
     return np.loadtxt(path)
+
+def prepare_ipython_image_slider(image_dir):
+    paths = glob(f'{image_dir}/*.png')
+    paths = sorted(paths, key=lambda p: parse_index(p))
+
+    def select(index):
+        display(Image(paths[index]))
+
+    slider = IntSlider(min=0, max=len(paths)-1, step=1, value=0)
+    widget = interactive(select, index=slider)
+    return widget
