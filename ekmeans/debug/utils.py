@@ -8,7 +8,9 @@ from IPython.display import display, Image
 from soydata.visualize import scatterplot
 
 
-def draw_scatterplot(X, labels, r=-1, i=-1, show_inline=True, toolbar_location=None):
+def draw_scatterplot(X, labels, r=-1, i=-1,
+    toolbar_location=None, n_labels=-1, show_inline=True):
+
     """
     It draws scatterplot. The color of not assigned points is `rightgrey`.
     And each cluster is painted with a different color.
@@ -42,13 +44,14 @@ def draw_scatterplot(X, labels, r=-1, i=-1, show_inline=True, toolbar_location=N
     noise_indices = np.where(labels == -1)[0]
 
     p = scatterplot(X[data_indices], labels=labels[data_indices], size=3,
-        title=title, show_inline=False, toolbar_location=toolbar_location)
+        title=title, show_inline=False, toolbar_location=toolbar_location, n_labels=n_labels)
     p = scatterplot(X[noise_indices], size=3, color='lightgrey',
         p=p, show_inline=show_inline)
 
     return p
 
-def draw_scatterplots_batch(X, log_dir, figure_dir=None, height=600, width=600, figure_type='png'):
+def draw_scatterplots_batch(X, log_dir, n_labels=-1,
+    figure_dir=None, height=600, width=600, figure_type='png'):
 
     if figure_type == 'png':
         toolbar_location = None
@@ -67,7 +70,7 @@ def draw_scatterplots_batch(X, log_dir, figure_dir=None, height=600, width=600, 
         filename = path.split("/")[-1][:-4]
         labels = load_label(path)
         r, i = parse_index(path)
-        fig = draw_scatterplot(X, labels, r, i, show_inline=False)
+        fig = draw_scatterplot(X, labels, r, i, n_labels=n_labels, show_inline=False)
         fig.height = height
         fig.width = width
         figures.append(fig)
