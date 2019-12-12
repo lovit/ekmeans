@@ -18,7 +18,13 @@ def merge_close_clusters(centers, labels, threshold, metric='euclidean'):
     group_centers = np.zeros((n_groups, n_terms))
     for g, idxs in enumerate(groups):
         sum_ = centers_[idxs].sum(axis=0)
-        mean = sum_ / cluster_size[idxs].sum()
+        size = cluster_size[idxs].sum()
+        # TODO: check empty cluster
+        # temporary expedient: Ln 24 -27
+        if size > 0:
+            mean = sum_ / size
+        else:
+            mean = np.zeros(centers.shape[1], dtype=centers.dtype)
         group_centers[g] = mean
 
     labels_ = -1 * np.ones(labels.shape[0], dtype=np.int)
