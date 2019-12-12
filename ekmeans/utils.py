@@ -15,24 +15,25 @@ def merge_close_clusters(centers, labels, threshold, metric='euclidean'):
     centers_ = np.dot(np.diag(cluster_size), centers)
 
     n_groups = len(groups)
-    group_centers = np.zeros((n_groups, n_terms))
-    for g, idxs in enumerate(groups):
-        sum_ = centers_[idxs].sum(axis=0)
-        size = cluster_size[idxs].sum()
-        # TODO: check empty cluster
-        # temporary expedient: Ln 24 -27
-        if size > 0:
-            mean = sum_ / size
-        else:
-            mean = np.zeros(centers.shape[1], dtype=centers.dtype)
-        group_centers[g] = mean
 
-    labels_ = -1 * np.ones(labels.shape[0], dtype=np.int)
-    for m_idx, c_idxs in enumerate(groups):
-        for c_idx in c_idxs:
-            idxs = np.where(labels == c_idx)[0]
-            labels_[idxs] = m_idx
-    return group_centers, labels_, groups
+    centers_new = []
+    labels_new = -1 * np.ones(labels.shape[0], dtype=np.int)
+    for g_idx, cluster_indices in enumerate(groups):
+        # make new centroid
+        centroid_sum = centers_[cluster_indices].sum(axis=0)
+        group_size = cluster_size[cluster_indices].sum()
+        # TODO: check empty cluster
+        if group_size == 0:
+            continue
+        # update group centroid
+        centroid = centroid_sum / group_size
+        centers_new.append(centroid)
+        # update group labels
+        for c_idx in cluster_indices:
+            data_indices = np.where(labels == c_idx)[0]
+            labels_new[data_indices] = g_idx
+    centers_new = np.vstack(centers_new)
+    return centers_new, labels_new, groups
 
 def _closest_group(groups, c, pdist, max_dist):
     dist_ = 1
@@ -62,14 +63,25 @@ def _grouping_with_pdist(pdist, max_dist, sorted_indices):
             groups[g].append(c)
     return groups
 
-def filter_infrequents(labels, min_size):
+def filter_infrequents(min_size, labels, centers=None):
     if min_size <= 0:
-        return labels
+        return labels, centers
+    centers_ = []
+    labels_ = -np.ones(labels.shape[0], dtype=labels.dtype)
+    label_new = 0
     for label in np.unique(labels):
         indices = np.where(labels == label)[0]
         if indices.shape[0] < min_size:
-            labels[indices] = -1
-    return labels
+            continue
+        labels_[indices] = label_new
+        label_new += 1
+        if centers is not None:
+            centers_.append(centers[label])
+    if centers is None:
+        centers_ = None
+    else:
+        centers_ = np.vstack(centers_)
+    return labels_, centers_
 
 def inner_product(X, Y):
     """
