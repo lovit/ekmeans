@@ -108,7 +108,7 @@ class EKMeans:
         else:
             cluster_centers_ = None
 
-        self.cluster_centers_, labels_ = \
+        centers, labels_ = \
             ekmeans(X, self.n_clusters, self.metric, self.epsilon,
                 self.min_size, self.max_depth, self.coverage,
                 self.coarse_iter, self.max_iter, self.tol, self.init,
@@ -120,16 +120,15 @@ class EKMeans:
 
         if self.postprocessing:
             n_before = np.where(np.unique(labels_) >= 0)[0].shape[0]
-            self.cluster_centers_, labels_, _ = \
-                merge_close_clusters(self.cluster_centers_,
-                    labels_, self.epsilon, self.metric)
+            centers, labels_, _ = \
+                merge_close_clusters(centers, labels_, self.epsilon, self.metric)
             n_after = np.where(np.unique(labels_) >= 0)[0].shape[0]
             if self.verbose:
                 print(f'Merged similar clusters. num clusters {n_before} -> {n_after}')
 
         n_before = np.where(labels_ >= 0)[0].shape[0]
-        self.labels_ = filter_infrequents(labels_, min_size)
-        n_after = np.where(self.labels_ >= 0)[0].shape[0]
+        labels_, centers = filter_infrequents(min_size, labels_, centers)
+        n_after = np.where(labels_ >= 0)[0].shape[0]
         if (n_after < n_before) and (self.verbose):
             n_data = X.shape[0]
             p_before = 100 * n_before / n_data
@@ -138,19 +137,21 @@ class EKMeans:
                   f'Assigned points: {n_before} -> {n_after} ({p_before:.4}% -> {p_after:.4}%)')
 
         if self.verbose:
-            n_clusters = np.where(np.unique(self.labels_) >= 0)[0].shape[0]
+            n_clusters = np.where(np.unique(labels_) >= 0)[0].shape[0]
             print(f'Found {n_clusters} clusters')
 
         if logger is not None:
-            logger.log(-1, -1, self.labels_, path=f'{logger.log_dir}/labels.txt')
+            logger.log(-1, -1, labels_, path=f'{logger.log_dir}/labels.txt')
 
+        self.cluster_centers_ = centers
+        self.labels_ = labels_
         return self
 
     def predict(self, X, min_size=-1):
         labels, dist = pairwise_distances_argmin_min(
             X, self.cluster_centers_, metric=self.metric)
         labels[np.where(dist >= self.epsilon)[0]] = -1
-        labels = filter_infrequents(labels, min_size)
+        labels, _ = filter_infrequents(min_size, labels, None)
         return labels
 
     def transform(self, X):
@@ -277,6 +278,9 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
             if t_strf:
                 t_strf = f', time: {t_strf}'
             print(f'[round: {depth}/{max_depth + depth_begin}] #assigned: {n_assigned} ({percent_strf}){t_strf}\n')
+            # develop
+            n_unique = np.where(np.unique(labels) >= 0)[0].shape[0]
+            print(f'[dev], unique labels = {n_unique}, center shape = {centers.shape}\n')
 
         if (coverage > 0) and (percent > coverage):
             print(f'Reached the target coverage {100 * coverage:.4}%')
