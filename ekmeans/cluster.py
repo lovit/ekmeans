@@ -226,7 +226,7 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
 
     n_clusters = 0
     n_data = X.shape[0]
-    labels = -np.ones(n_data)
+    labels = -np.ones(n_data, dtype=np.int)
     t = time()
 
     for depth in range(depth_begin + 1, max_depth_ + depth_begin + 1):
@@ -242,7 +242,7 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
             indices = np.where(labels == -1)[0]
             Xs = X[indices]
             centers_new = initialize(Xs, n_init, init, random_state)
-            sub_labels = -np.ones(indices.shape[0])
+            sub_labels = -np.ones(indices.shape[0], dtype=np.int)
             prefix = f'round: {depth}/{max_depth + depth_begin} coarse-'
 
             # no-logging
@@ -416,7 +416,7 @@ def kmeans(X, n_clusters, metric, init='random', random_state=None,
 
     # initialize
     centers = initialize(X, n_clusters, init, random_state)
-    labels = -np.ones(X.shape[0])
+    labels = -np.ones(X.shape[0], dtype=np.int)
 
     # train
     centers, labels = kmeans_core(X, centers, metric,
