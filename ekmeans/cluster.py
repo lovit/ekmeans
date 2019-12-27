@@ -246,7 +246,7 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
             prefix = f'round: {depth}/{max_depth + depth_begin} coarse-'
 
             # no-logging
-            centers_new, sub_labels = ekmeans_core(Xs, centers_new, metric, sub_labels,
+            centers_new, sub_labels, _ = ekmeans_core(Xs, centers_new, metric, sub_labels,
                 coarse_iter, tol, epsilon, min_size, verbose, prefix, -1, None)
 
             labels[indices] = sub_labels
@@ -257,7 +257,7 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
             logger.log(depth, 0, labels, f'{now()}  [round: {depth}/{max_depth_ + depth_begin}] save coarse learning')
 
         prefix = f'round: {depth}/{max_depth + depth_begin} full-'
-        centers, labels = ekmeans_core(X, centers, metric, labels,
+        centers, labels, i_iter = ekmeans_core(X, centers, metric, labels,
             max_iter_, tol, epsilon, min_size, verbose, prefix, depth, logger)
 
         if merge_similar:
@@ -268,7 +268,7 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
             if verbose:
                 print(message)
             if (logger is not None):
-                logger.log(depth, max_iter_+1, labels, message)
+                logger.log(depth, i_iter+1, labels, message)
 
         n_assigned = np.where(labels >= 0)[0].shape[0]
         percent = n_assigned / n_data
@@ -334,11 +334,14 @@ def ekmeans_core(X, centers, metric, labels, max_iter,
         Centroid vectors, shape = (n_clusters, X.shape[1])
     labels : numpy.ndarray
         Integer list, shape = (X.shape[0],)
+    i_iter : int
+        Number of excuted iterations
     """
     begin_time = time()
     n_clusters = centers.shape[0]
 
     # repeat
+    i_iter = 0
     for i_iter in range(1, max_iter + 1):
 
         # training
@@ -378,7 +381,7 @@ def ekmeans_core(X, centers, metric, labels, max_iter,
         if early_stop:
             break
 
-    return centers, labels
+    return centers, labels, i_iter
 
 def kmeans(X, n_clusters, metric, init='random', random_state=None,
     max_iter=10, tol=0.001, verbose=False, logger=None):
@@ -419,7 +422,7 @@ def kmeans(X, n_clusters, metric, init='random', random_state=None,
     labels = -np.ones(X.shape[0], dtype=np.int)
 
     # train
-    centers, labels = kmeans_core(X, centers, metric,
+    centers, labels, _ = kmeans_core(X, centers, metric,
         labels, max_iter, tol, verbose, logger)
 
     return centers, labels
@@ -452,11 +455,14 @@ def kmeans_core(X, centers, metric, labels, max_iter, tol, verbose, logger=None)
         Centroid vectors, shape = (n_clusters, X.shape[1])
     labels : numpy.ndarray
         Integer list, shape = (X.shape[0],)
+    i_iter : int
+        Number of excuted iterations
     """
     begin_time = time()
     n_clusters = centers.shape[0]
 
     # repeat
+    i_iter = 0
     for i_iter in range(1, max_iter + 1):
 
         # training
@@ -490,7 +496,7 @@ def kmeans_core(X, centers, metric, labels, max_iter, tol, verbose, logger=None)
         if early_stop:
             break
 
-    return centers, labels
+    return centers, labels, i_iter
 
 def reassign(X, centers, metric, epsilon=0, min_size=0, do_filter=True):
     """
