@@ -231,7 +231,7 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
 
     for depth in range(depth_begin + 1, max_depth_ + depth_begin + 1):
         if centers is None:
-            centers = initialize(X, n_init, init, random_state)
+            centers = initialize(X, n_init, metric, init, random_state)
 
         if depth == depth_begin + 1:
             max_iter_ = max_iter + coarse_iter
@@ -241,7 +241,7 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
         if (depth > depth_begin + 1) and (coarse_iter > 0):
             indices = np.where(labels == -1)[0]
             Xs = X[indices]
-            centers_new = initialize(Xs, n_init, init, random_state)
+            centers_new = initialize(Xs, n_init, metric, init, random_state)
             sub_labels = -np.ones(indices.shape[0], dtype=np.int)
             prefix = f'round: {depth}/{max_depth + depth_begin} coarse-'
 
@@ -415,7 +415,7 @@ def kmeans(X, n_clusters, metric, init='random', random_state=None,
     """
 
     # initialize
-    centers = initialize(X, n_clusters, init, random_state)
+    centers = initialize(X, n_clusters, metric, init, random_state)
     labels = -np.ones(X.shape[0], dtype=np.int)
 
     # train
@@ -692,7 +692,7 @@ def flush(X, centers, labels, sub_to_idx, epsilon, metric):
     labels[sub_to_idx[assigned_idxs]] = sub_labels[assigned_idxs]
     return labels
 
-def initialize(X, n_clusters, init, random_state):
+def initialize(X, n_clusters, metric, init, random_state):
     """
     Arguments
     ---------
@@ -700,6 +700,8 @@ def initialize(X, n_clusters, init, random_state):
         Training data
     n_clusters : int
         Number of clusters
+    metric : str
+        Distance metric
     init : str, callable, or numpy.ndarray
         Initialization method
     random_state : int or None
@@ -717,6 +719,8 @@ def initialize(X, n_clusters, init, random_state):
             centers = X[seeds,:].todense()
         else:
             centers = X[seeds,:]
+    elif init == 'kmeans++':
+        centers, _ = kmeanspp(X, n_clusters, metric)
     elif hasattr(init, '__array__'):
         centers = np.array(init, dtype=X.dtype)
         if centers.shape[0] != n_clusters:
@@ -729,3 +733,77 @@ def initialize(X, n_clusters, init, random_state):
         raise ValueError("init method should be "
             "['random', 'callable', 'numpy.ndarray']")
     return centers
+
+def kmeanspp(X, n_clusters, metric):
+    """
+    Arguments
+    ---------
+    X : numpy.ndarray or scipy.sparse.csr_matrix
+        Training data
+    n_clusters : int
+        Number of clusters
+    metric : str
+        Distance metric
+
+    Returns
+    -------
+    centers : numpy.ndarray
+        Initialized centroid vectors, shape = (n_clusters, X.shape[1])
+
+    Usage
+    -----
+    With dense matrix
+
+        >>> import numpy as np
+
+        >>> n_clusters = 5
+        >>> metric = 'euclidean'
+        >>> z = np.random.random_sample((1000, 2))
+
+        >>> centers, seeds = kmeanspp(z, n_clusters, metric)
+
+    With sparse matrix
+
+        >>> from scipy.sparse import csr_matrix
+
+        >>> nnz = 1000
+        >>> rows = np.random.randint(0, 100, nnz)
+        >>> cols = np.random.randint(0, 500, nnz)
+        >>> data = np.ones(nnz)
+        >>> z = csr_matrix((data, (rows, cols)))
+
+        >>> centers, seeds = kmeanspp(z, n_clusters, metric)
+    """
+    n_data, n_features = X.shape
+    if n_data < n_clusters:
+        raise ValueError('The length of data must be larger than `n_clusters`')
+    if n_data == n_clusters:
+        if sp.sparse.issparse(X):
+            return X.todense()
+        return X
+
+    # initialize
+    seeds = np.zeros(n_clusters, dtype=np.int)
+    seed = np.random.randint(n_data)
+    seeds[0] = seed
+    dist = pairwise_distances(X[seed].reshape(1,-1), X, metric=metric).reshape(-1)
+
+    # iterate
+    for i in range(1, n_clusters):
+        # define prob
+        prob = dist ** 2
+        prob /= prob.sum()
+        # update seed
+        seed = np.random.choice(n_data, 1, p=prob)
+        seeds[i] = seed
+        # update dist
+        if i < n_clusters -1:
+            dist_ = pairwise_distances(X[seed].reshape(1,-1), X, metric=metric).reshape(-1)
+            dist = np.vstack([dist, dist_]).min(axis=0)
+
+    if sp.sparse.issparse(X):
+        centers = X[seeds,:].todense()
+    else:
+        centers = X[seeds]
+
+    return centers, seeds
