@@ -71,7 +71,7 @@ def filter_infrequents(min_size, labels, centers=None):
     label_new = 0
     for label in np.unique(labels):
         indices = np.where(labels == label)[0]
-        if indices.shape[0] < min_size:
+        if (indices.shape[0] < min_size) or (label == -1):
             continue
         labels_[indices] = label_new
         label_new += 1

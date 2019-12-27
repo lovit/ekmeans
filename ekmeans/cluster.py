@@ -361,7 +361,7 @@ def ekmeans_core(X, centers, metric, labels, max_iter,
             early_stop = False
 
         # reinitialize empty clusters
-        if np.where(cluster_size == 0)[0].shape[0] > 0:
+        if (i_iter < max_iter) and (np.where(cluster_size == 0)[0].shape[0] > 0):
             centers_ = reinitialize_empty_clusters_with_notassigned(
                 X, centers_, cluster_size, labels_)
 
