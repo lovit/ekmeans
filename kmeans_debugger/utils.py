@@ -51,16 +51,16 @@ def draw_scatterplot(X, labels, title=None, toolbar_location=None, n_labels=-1, 
     unique_labels = np.unique(labels)
     unique_labels = unique_labels[np.where(unique_labels >= 0)[0]]
     centers = np.zeros((unique_labels.shape[0], X.shape[1]))
-    for label in unique_labels:
+    for i, label in enumerate(unique_labels):
         indices = np.where(labels == label)[0]
-        centers[label] = X[indices].mean(axis=0)
-    p = scatterplot(centers, size=10, labels=unique_labels,
+        centers[i] = X[indices].mean(axis=0)
+    p = scatterplot(centers, size=10, labels=unique_labels, n_labels=n_labels,
         p=p, marker='triangle', show_inline=show_inline)
 
     return p
 
-def draw_scatterplots_batch(X, log_dir, n_labels=-1,
-    figure_dir=None, height=600, width=600, figure_type='png'):
+def draw_scatterplots_batch(X, log_dir, n_labels=-1, figure_dir=None,
+    height=600, width=600, figure_type='png', verbose=True):
 
     if figure_type == 'png':
         toolbar_location = None
@@ -93,7 +93,8 @@ def draw_scatterplots_batch(X, log_dir, n_labels=-1,
             os.makedirs(figure_dir)
         for fig, figpath in zip(figures, figpaths):
             export(fig, figpath)
-            print(f'saved {figpath}')
+            if verbose:
+                print(f'saved {figpath}')
 
     return figures
 
