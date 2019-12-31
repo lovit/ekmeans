@@ -199,6 +199,7 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
         and updated centroid is smaller than `tol`, it stops training step.
     init : str, callable, or numpy.ndarray
         Initialization method
+        Available choices : ['random', 'callable', 'numpy.ndarray', 'kmeans++']
     random_state : int or None
         Random seed
     verbose : Boolean
@@ -394,6 +395,7 @@ def kmeans(X, n_clusters, metric, init='random', random_state=None,
         Distance metric
     init : str, callable, or numpy.ndarray
         Initialization method
+        Available choices : ['random', 'callable', 'numpy.ndarray', 'kmeans++']
     random_state : int or None
         Random seed
     max_iter : int
@@ -741,7 +743,7 @@ def initialize(X, n_clusters, metric, init, random_state):
         centers = np.asarray(centers, dtype=X.dtype)
     else:
         raise ValueError("init method should be "
-            "['random', 'callable', 'numpy.ndarray']")
+            "['random', 'callable', 'numpy.ndarray', 'kmeans++']")
     return centers
 
 def kmeanspp(X, n_clusters, metric):
