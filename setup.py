@@ -14,7 +14,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url='https://github.com/lovit/ekmeans',
-    packages=setuptools.find_packages(),
+    packages = ["ekmeans","kmeans_debugger"],
     install_requires=[
         "numpy>=1.12.1",
         "scipy>=1.1.0",
