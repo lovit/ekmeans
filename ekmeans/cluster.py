@@ -289,9 +289,6 @@ def ekmeans(X, n_init, metric, epsilon, min_size, max_depth, coverage,
     if logger is not None:
         logger.save_messages()
 
-    # TODO
-    # postprocessing: merge similar clusters
-
     return centers, labels
 
 def ekmeans_core(X, centers, metric, labels, max_iter,
@@ -469,6 +466,12 @@ def kmeans_core(X, centers, metric, labels, max_iter, tol, verbose, logger=None)
         labels_, dist = reassign(X, centers, metric)
         centers_, cluster_size = update_centroid(X, centers, labels_)
 
+        # average distance only with assigned points
+        assigned_indices = np.where(labels_ >= 0)[0]
+        inner_dist = dist[assigned_indices].mean()
+        n_assigned = assigned_indices.shape[0]
+        n_clusters = np.where(np.unique(labels_) >= 0)[0].shape[0]
+
         # convergence check
         diff, n_changes, early_stop = check_convergence(
             centers, labels, centers_, labels_, tol, metric)
@@ -485,13 +488,14 @@ def kmeans_core(X, centers, metric, labels, max_iter, tol, verbose, logger=None)
         labels = labels_
 
         # verbose
+        strf = verbose_message(i_iter, max_iter, diff, n_changes, n_assigned,
+            n_clusters, inner_dist, early_stop, begin_time, prefix='kmeans')
         if verbose:
-            strf = verbose_message(i_iter, max_iter, diff, n_changes,
-                -1, -1, dist.mean(), early_stop, begin_time)
             print(strf)
 
-        # TODO
         # logging
+        if logger is not None:
+            logger.log(0, i_iter, labels, f'{now()}  {strf}')
 
         if early_stop:
             break
