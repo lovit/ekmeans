@@ -17,7 +17,10 @@ def build_logger(log_dir, ekmeans, time_prefix=True):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
-    parameters = get_attributes(ekmeans)
+    if ekmeans is None:
+        parameters = {'no-parameters': '-'}
+    else:
+        parameters = get_attributes(ekmeans)
     return Logger(log_dir, parameters)
 
 def get_attributes(ekmeans):
