@@ -43,10 +43,19 @@ def draw_scatterplot(X, labels, title=None, toolbar_location=None, n_labels=-1, 
     data_indices = np.where(labels >= 0)[0]
     noise_indices = np.where(labels == -1)[0]
 
-    p = scatterplot(X[data_indices], labels=labels[data_indices], size=3,
+    p = scatterplot(X[data_indices], labels=labels[data_indices], size=3, alpha=0.6,
         title=title, show_inline=False, toolbar_location=toolbar_location, n_labels=n_labels)
     p = scatterplot(X[noise_indices], size=3, color='lightgrey',
-        p=p, show_inline=show_inline)
+        p=p, show_inline=False)
+
+    unique_labels = np.unique(labels)
+    unique_labels = unique_labels[np.where(unique_labels >= 0)[0]]
+    centers = np.zeros((unique_labels.shape[0], X.shape[1]))
+    for label in unique_labels:
+        indices = np.where(labels == label)[0]
+        centers[label] = X[indices].mean(axis=0)
+    p = scatterplot(centers, size=10, labels=unique_labels,
+        p=p, marker='triangle', show_inline=show_inline)
 
     return p
 
@@ -109,7 +118,7 @@ def sort_paths(paths):
     return paths_sub0 + paths_sub1
 
 def load_label(path):
-    return np.loadtxt(path)
+    return np.array(np.loadtxt(path), dtype=np.int)
 
 def prepare_ipython_image_slider(image_dir):
     paths = sort_paths(glob(f'{image_dir}/*.png'))
